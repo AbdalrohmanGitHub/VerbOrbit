@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VerbOrbit 2.0 – Gehirngerechtes DaF-Lernen</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Sans+Arabic:wght@400;700&display=swap');
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(circle at center, #f8fafc 0%, #eef2ff 100%);
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    .arabic-text {
+      font-family: 'Noto Sans Arabic', sans-serif;
+      direction: rtl;
+    }
+
+    /* Mindly Orbital Transitions */
+    .orbit-node {
+      transition: all 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .orbit-node:hover {
+      transform: translate(-50%, -50%) scale(1.08);
+      z-index: 30;
+    }
+
+    /* Dual-Coding SVG Keyframes */
+    @keyframes moveDown {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(14px); }
+    }
+    @keyframes trainMove {
+      0% { transform: translateX(-8px); }
+      50% { transform: translateX(8px); }
+      100% { transform: translateX(-8px); }
+    }
+    @keyframes pulseTarget {
+      0%, 100% { r: 6; opacity: 1; }
+      50% { r: 11; opacity: 0.4; }
+    }
+    .anim-down { animation: moveDown 2.2s ease-in-out infinite; }
+    .anim-train { animation: trainMove 3s ease-in-out infinite; }
+    .anim-pulse { animation: pulseTarget 1.8s ease-in-out infinite; }
+
+    /* Quiz Shake & Success */
+    @keyframes shake {
+      0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+      25% { transform: translate(-50%, -50%) translateX(-8px); }
+      75% { transform: translate(-50%, -50%) translateX(8px); }
+    }
+    .shake-error { animation: shake 0.35s ease-in-out; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between text-slate-800">
+
+  <!-- TOP BAR: Zwiebel-Prinzip (Scaffolding), Sprach-Anker & Modus -->
+  <header class="w-full max-w-6xl mx-auto px-4 pt-3 pb-2 flex flex-wrap items-center justify-between gap-2 z-40">
+    <!-- Brand & Verb Selector -->
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-extrabold shadow-md shadow-blue-200">
+        V
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-extrabold text-base tracking-tight text-slate-900">VerbOrbit</h1>
+          <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Anti-Overload</span>
+        </div>
+        <p class="text-xs text-slate-500">Visuelles DaF-Gehirntraining</p>
+      </div>
+
+      <!-- Basisverb Auswahl -->
+      <select id="verbSelect" onchange="switchBaseVerb(this.value)" class="ml-3 bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <option value="kommen">Basisverb: kommen (Bewegung)</option>
+        <option value="setzen">Basisverb: setzen (Position)</option>
+        <option value="nehmen">Basisverb: nehmen (Besitz)</option>
+      </select>
+    </div>
+
+    <!-- 2. ZWIEBEL-PRINZIP (Progressive Schichten gegen Cognitive Overload) -->
+    <div class="flex items-center bg-white p-1 rounded-2xl shadow-sm border border-slate-200/80">
+      <span class="text-[11px] font-bold text-slate-400 px-2.5">🧅 Zwiebel-Schicht:</span>
+      <button onclick="setOnionLayer(1)" id="layerBtn1" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-blue-600 text-white shadow-sm">
+        1: Überleben (Top 3 ★5)
+      </button>
+      <button onclick="setOnionLayer(2)" id="layerBtn2" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all text-slate-600 hover:bg-slate-100">
+        2: Alltag (+ ★4)
+      </button>
+      <button onclick="setOnionLayer(3)" id="layerBtn3" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all text-slate-600 hover:bg-slate-100">
+        3: Profi (+ ★3)
+      </button>
+    </div>
+
+    <!-- 4. ANCHORING (Muttersprachen-Auge) & 5. QUIZ-MODUS -->
+    <div class="flex items-center gap-2">
+      <select id="anchorLang" onchange="setAnchorLanguage(this.value)" class="bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold rounded-xl px-2.5 py-2 shadow-sm">
+        <option value="ar">👁️ Anker: العربية (Arabisch)</option>
+        <option value="en">👁️ Anker: English</option>
+        <option value="tr">👁️ Anker: Türkçe</option>
+        <option value="off">👁️ Anker: Aus (Nur Deutsch)</option>
+      </select>
+
+      <button onclick="toggleLokomotiveModal()" class="px-3 py-2 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition">
+        🚂 Zug-Logik
+      </button>
+
+      <button onclick="toggleQuizMode()" id="quizToggleBtn" class="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md hover:opacity-95 transition">
+        🧠 Räumliches Quiz
+      </button>
+    </div>
+  </header>
+
+  <!-- QUIZ BANNER (Erscheint nur im Quiz-Modus) -->
+  <div id="quizBanner" class="hidden w-full max-w-2xl mx-auto mt-1 px-4 z-30">
+    <div class="bg-white border-2 border-violet-500 rounded-2xl p-3.5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-violet-100 text-violet-700">Topografisches Gedächtnis</span>
+          <span id="quizScoreText" class="text-xs font-bold text-slate-500">Treffer: 0 / 0</span>
+        </div>
+        <p id="quizPromptSentence" class="text-sm sm:text-base font-bold text-slate-900 mt-1">
+          Lückensatz lädt...
+        </p>
+        <p id="quizHintChunk" class="text-xs text-violet-600 font-semibold mt-0.5"></p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button onclick="nextQuizQuestion()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700">
+          Überspringen ➔
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN INTERACTIVE AREA: Mindly Orbital Map + Dual-Coding Card -->
+  <main class="flex-1 w-full max-w-6xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-center gap-6 my-auto py-2">
+
+    <!-- LEFT/CENTER: MINDLY ORBITAL CANVAS -->
+    <div class="relative w-[360px] h-[420px] sm:w-[460px] sm:h-[470px] flex items-center justify-center shrink-0">
+
+      <!-- Parent Breadcrumb Node (Mindly Top Node connected by vertical line) -->
+      <div id="parentBreadcrumb" onclick="resetToBaseOverview()" class="absolute top-1 left-1/2 -translate-x-1/2 flex flex-col items-center cursor-pointer group z-20">
+        <div class="w-16 h-16 rounded-full bg-sky-400 text-white flex flex-col items-center justify-center shadow-md group-hover:scale-105 transition">
+          <span class="text-[10px] uppercase font-bold opacity-80">Wurzel</span>
+          <span class="text-xs font-extrabold" id="parentLabel">Top 50</span>
+        </div>
+        <!-- Vertical connector line like in Mindly screenshot -->
+        <div class="w-[2px] h-10 bg-slate-300"></div>
+      </div>
+
+      <!-- Orbital Guide Ring -->
+      <div id="orbitRing" class="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] sm:w-[310px] sm:h-[310px] rounded-full border-[1.5px] border-slate-200/90 pointer-events-none"></div>
+
+      <!-- Dynamic SVG Lines from Center to Orbit Nodes -->
+      <svg id="orbitLinesSvg" class="absolute inset-0 w-full h-full pointer-events-none z-0"></svg>
+
+      <!-- CENTER NODE (Das Zug-Basisverb) -->
+      <div id="centerNode" onclick="showBaseVerbInfo()" class="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-blue-600 text-white flex flex-col items-center justify-center text-center p-2 shadow-xl shadow-blue-500/25 cursor-pointer z-20 hover:bg-blue-700 transition">
+        <span class="text-[10px] font-bold uppercase tracking-widest text-blue-200">🚂 Basisverb</span>
+        <span id="centerVerbTitle" class="text-xl sm:text-2xl font-extrabold tracking-tight">kommen</span>
+        <span id="centerVerbAnchor" class="text-xs text-blue-100 mt-0.5 arabic-text">يأتي (Bewegung)</span>
+      </div>
+
+      <!-- ORBIT PLANET NODES CONTAINER -->
+      <div id="orbitNodesContainer" class="absolute inset-0 pointer-events-none"></div>
+    </div>
+
+    <!-- RIGHT: DUAL-CODING + CHUNKING + ANCHORING INSPECTOR CARD -->
+    <aside id="learningCard" class="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-100 p-5 z-20 transition-all">
+      <!-- Top Badge Row -->
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <div class="flex items-center gap-1.5">
+          <span id="cardPrefixBadge" class="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 font-extrabold text-xs">an|kommen</span>
+          <span id="cardSepBadge" class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-semibold text-[11px]">trennbar</span>
+        </div>
+        <div id="cardStars" class="text-amber-400 text-sm tracking-tight" title="Alltagsrelevanz">★★★★★</div>
+      </div>
+
+      <!-- 1. DUAL-CODING VISUAL BOX (Minimalistische animierte Strichzeichnung) -->
+      <div class="bg-slate-50 border border-slate-200/70 rounded-2xl p-4 flex items-center gap-4 mb-4">
+        <div id="dualCodingSvgBox" class="w-20 h-20 rounded-2xl bg-white shadow-inner border border-slate-200 flex items-center justify-center shrink-0">
+          <!-- Dynamisches animiertes SVG wird hier per JS eingesetzt -->
+        </div>
+        <div>
+          <span class="text-[10px] font-extrabold uppercase tracking-wider text-blue-600">1. Dual-Coding (Bild-Anker)</span>
+          <h3 id="cardVisualTitle" class="font-extrabold text-slate-900 text-sm sm:text-base leading-snug">Ziel erreichen</h3>
+          <p id="cardLocomotiveHint" class="text-xs text-slate-600 mt-0.5">
+            🚂 Vorsilbe <b>an-</b> = Kontakt / Ankunft am Zielpunkt.
+          </p>
+        </div>
+      </div>
+
+      <!-- 3. KONTEXTUELLES CHUNKING (Wortbausteine statt isolierter Vokabeln) -->
+      <div class="mb-4">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">3. Fester Sprach-Chunk (Nicht einzeln lernen!)</span>
+        </div>
+        <div id="chunkPillsContainer" class="flex flex-wrap gap-2">
+          <!-- Chunk Buttons -->
+        </div>
+      </div>
+
+      <!-- Beispielsatz zum gewählten Chunk / Sinn -->
+      <div class="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3.5 mb-3">
+        <p id="cardExampleSentence" class="text-sm font-bold text-slate-900 leading-relaxed">
+          „Mein Zug <span class="underline decoration-emerald-500 decoration-2">kommt</span> heute pünktlich <span class="text-emerald-700 font-extrabold">in Berlin</span> <span class="underline decoration-emerald-500 decoration-2">an</span>.“
+        </p>
+        <p id="cardMeaningDe" class="text-xs text-slate-600 mt-1">
+          Einen Ort oder ein Ziel nach einer Reise erreichen.
+        </p>
+      </div>
+
+      <!-- 4. MUTTERSPRACHEN-ANKER (Arabisch / Englisch / Türkisch) -->
+      <div id="anchorBox" class="bg-amber-50/90 border border-amber-200 rounded-2xl p-3 flex items-center justify-between gap-3">
+        <div>
+          <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 block">4. Blitz-Verankerung (Muttersprache)</span>
+          <p id="cardNativeAnchorText" class="text-sm font-bold text-slate-900 mt-0.5 arabic-text">
+            يَصِل إلى (مكان) — الدمج الثابت: ankommen + in
+          </p>
+        </div>
+        <button onclick="speakCurrentSentence()" title="Satz langsam vorlesen" class="w-9 h-9 rounded-xl bg-amber-200/70 hover:bg-amber-300 text-amber-900 flex items-center justify-center font-bold text-base shrink-0 transition">
+          🔊
+        </button>
+      </div>
+    </aside>
+  </main>
+
+  <!-- MODAL: Die Lokomotiven-Metapher (Erklärt das deutsche Präfix-System für arabische/internationale Lernende) -->
+  <div id="lokomotiveModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between mb-3">
+        <span class="px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 text-xs font-extrabold">Mentaler Anker gegen Sprachblockaden</span>
+        <button onclick="toggleLokomotiveModal()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+      </div>
+      <h2 class="text-lg font-extrabold text-slate-900 mb-2">🚂 Warum deutsche Verben wie Züge funktionieren</h2>
+      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-3">
+        Im Arabischen verändert sich die 3-Konsonanten-Wurzel von innen (z.B. <b>k-t-b</b> ➔ كتاب / مكتب). Im Deutschen bleibt der Wagen (z.B. <b>kommen</b>) gleich, aber wir hängen vorne eine andere <b>Lokomotive (Vorsilbe)</b> an!
+      </p>
+      <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-200 space-y-2 text-xs mb-4">
+        <div>🎯 <b>an-</b> (Kontakt/Ziel): <b>an</b>kommen = am Ziel anstoßen</div>
+        <div>🤝 <b>mit-</b> (Gemeinsam): <b>mit</b>kommen = zusammen fahren</div>
+        <div>✂️ <b>ab-</b> (Trennung/Runter): <b>ab</b>setzen = Brille runternehmen / Steuer abziehen</div>
+        <div>🔄 <b>zurück-</b> (Rückweg): <b>zurück</b>kommen = wieder zum Startpunkt</div>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 arabic-text mb-4">
+        💡 <b>للمتحدثين بالعربية:</b> الفعل الأساسي هو عربة القطار، والبادئة (مثل <b>an-</b> أو <b>mit-</b>) هي القاطرة التي تحدد الاتجاه والمعنى! لا تحفظ الفعل منفرداً، بل احفظه كقطعة واحدة مع حرف الجر.
+      </div>
+      <button onclick="toggleLokomotiveModal()" class="w-full py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition">
+        Verstanden! Zurück zur Mindmap
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================================
+    // DATENBASIS: Feste Winkel (Topografie), Zwiebel-Schichten, Dual-Coding & Chunks
+    // ============================================================================
+    const VERB_DB = {
+      kommen: {
+        infinitive: "kommen",
+        anchor_ar: "يأتي (حركة)",
+        anchor_en: "to come (movement)",
+        anchor_tr: "gelmek (hareket)",
+        branches: [
+          {
+            id: "ankommen",
+            prefix: "an",
+            full: "ankommen",
+            separable: true,
+            stars: 5,
+            onionLayer: 1,
+            angleDeg: 30, // Fester Platz auf 1 Uhr (Räumliches Gedächtnis!)
+            color: "#ff8a8a", // Mindly Coral
+            locomotiveHint: "Vorsilbe an- = Kontakt / Zielpunkt erreichen",
+            svgType: "arrive_pin",
+            chunks: [
+              {
+                chunkLabel: "ankommen + in (Ort)",
+                visualTitle: "An einem Ort eintreffen",
+                sentence: "Mein Zug **kommt** um 18 Uhr **in Berlin** **an**.",
+                meaningDe: "Nach einer Fahrt das Reiseziel erreichen.",
+                ar: "يَصِل إلى مكان (ankommen + in)",
+                en: "to arrive in/at a place",
+                tr: "bir yere varmak / ulaşmak"
+              },
+              {
+                chunkLabel: "ankommen + auf (Entscheidend sein)",
+                visualTitle: "Es hängt davon ab!",
+                sentence: "Es **kommt** **auf das Wetter** **an**, ob wir grillen.",
+                meaningDe: "Etwas ist entscheidend oder ausschlaggebend.",
+                ar: "يَعْتَمِد على... (Es kommt darauf an)",
+                en: "to depend on something",
+                tr: "bir şeye bağlı olmak"
+              }
+            ]
+          },
+          {
+            id: "mitkommen",
+            prefix: "mit",
+            full: "mitkommen",
+            separable: true,
+            stars: 5,
+            onionLayer: 1,
+            angleDeg: 150, // Fester Platz auf 5 Uhr
+            color: "#7ae582", // Mindly Mint
+            locomotiveHint: "Vorsilbe mit- = Gemeinsam in dieselbe Richtung",
+            svgType: "together_dots",
+            chunks: [
+              {
+                chunkLabel: "mitkommen + zu / nach",
+                visualTitle: "Begleiten / Zusammen gehen",
+                sentence: "Ich gehe ins Kino – **kommst** du **mit**?",
+                meaningDe: "Jemanden an einen Ort begleiten.",
+                ar: "يأتي مع / يرافق (يذهبون معاً)",
+                en: "to come along / join",
+                tr: "birlikte gelmek / katılmak"
+              }
+            ]
+          },
+          {
+            id: "zurueckkommen",
+            prefix: "zurück",
+            full: "zurückkommen",
+            separable: true,
+            stars: 5,
+            onionLayer: 1,
+            angleDeg: 270, // Fester Platz auf 9 Uhr
+            color: "#4cc9f0", // Mindly Sky Blue
+            locomotiveHint: "Vorsilbe zurück- = Rückkehr zum Ausgangspunkt",
+            svgType: "return_arrow",
+            chunks: [
+              {
+                chunkLabel: "zurückkommen + aus / von",
+                visualTitle: "Wieder nach Hause kehren",
+                sentence: "Wann **kommst** du **aus dem Urlaub** **zurück**?",
+                meaningDe: "Wieder an den Ort kommen, von dem man gestartet ist.",
+                ar: "يَعود / يَرجِع من...",
+                en: "to come back / return from",
+                tr: "geri dönmek"
+              }
+            ]
+          },
+          {
+            id: "vorbeikommen",
+            prefix: "vorbei",
+            full: "vorbeikommen",
+            separable: true,
+            stars: 4,
+            onionLayer: 2,
+            angleDeg: 210, // Fester Platz auf 7 Uhr
+            color: "#f9c74f", // Mindly Amber
+            locomotiveHint: "Vorsilbe vorbei- = Kurzer Besuch auf dem Weg",
+            svgType: "visit_door",
+            chunks: [
+              {
+                chunkLabel: "vorbeikommen + bei (Person)",
+                visualTitle: "Kurz jemanden besuchen",
+                sentence: "Er **kommt** morgen Abend kurz **bei mir** **vorbei**.",
+                meaningDe: "Jemanden für kurze Zeit zu Hause oder im Büro besuchen.",
+                ar: "يَمُرّ على شخص (زيارة قصيرة)",
+                en: "to drop by / swing by someone's place",
+                tr: "kısa bir süre uğramak"
+              }
+            ]
+          },
+          {
+            id: "reinkommen",
+            prefix: "rein",
+            full: "reinkommen",
+            separable: true,
+            stars: 4,
+            onionLayer: 2,
+            angleDeg: 90, // Fester Platz auf 3 Uhr
+            color: "#c77dff", // Mindly Lavender
+            locomotiveHint: "Vorsilbe rein- = Von draußen nach drinnen ins Zimmer",
+            svgType: "enter_box",
+            chunks: [
+              {
+                chunkLabel: "reinkommen + in (Raum)",
+                visualTitle: "Hereintreten (Alltagssprache)",
+                sentence: "Die Tür ist offen, **komm** doch bitte **rein**!",
+                meaningDe: "Von außen in ein Zimmer oder Haus eintreten.",
+                ar: "يَدْخُل إلى الداخل (تفضل بالدخول)",
+                en: "to come inside / enter",
+                tr: "içeri girmek / buyurmak"
+              }
+            ]
+          },
+          {
+            id: "auskommen",
+            prefix: "aus",
+            full: "auskommen",
+            separable: true,
+            stars: 3,
+            onionLayer: 3,
+            angleDeg: 330, // Fester Platz auf 11 Uhr
+            color: "#43aa8b",
+            locomotiveHint: "Vorsilbe aus- = Mit Ressourcen oder Menschen klarkommen",
+            svgType: "balance_scale",
+            chunks: [
+              {
+                chunkLabel: "auskommen + mit (Geld / Person)",
+                visualTitle: "Gut klarkommen / Genug haben",
+                sentence: "Ich **komme** **mit meinen Kollegen** super **aus**.",
+                meaningDe: "Sich gut mit jemandem verstehen oder mit Geld reichen.",
+                ar: "يَتَفاهم مع شخص / يَكتفي بالمال",
+                en: "to get along with / make do with",
+                tr: "iyi geçinmek / yetinmek"
+              }
+            ]
+          }
+        ]
+      },
+
+      setzen: {
+        infinitive: "setzen",
+        anchor_ar: "يَضَع / يُجلِس",
+        anchor_en: "to place / put / sit",
+        anchor_tr: "koymak / oturtmak",
+        branches: [
+          {
+            id: "absetzen",
+            prefix: "ab",
+            full: "absetzen",
+            separable: true,
+            stars: 5,
+            onionLayer: 1,
+            angleDeg: 0,
+            color: "#ff8a8a",
+            locomotiveHint: "Vorsilbe ab- = Nach unten wegnehmen oder abziehen",
+            svgType: "hat_off",
+            chunks: [
+              {
+                chunkLabel: "absetzen + Hut / Brille",
+                visualTitle: "Vom Kopf abnehmen",
+                sentence: "Er **setzt** seine Brille **ab**, um sich auszuruhen.",
+                meaningDe: "Brille, Hut, Helm oder Maske vom Kopf/Gesicht nehmen.",
+                ar: "يَخْلَع (النظارة أو القبعة عن الرأس)",
+                en: "to take off (glasses, hat, mask)",
+                tr: "çıkarmak (gözlük, şapka)"
+              },
+              {
+                chunkLabel: "absetzen + von der Steuer",
+                visualTitle: "Steuern sparen",
+                sentence: "Du kannst den Laptop **von der Steuer** **absetzen**.",
+                meaningDe: "Berufliche Kosten beim Finanzamt abziehen.",
+                ar: "يَخْصِم من الضرائب (توفير المال)",
+                en: "to deduct from taxes",
+                tr: "vergiden düşmek"
+              }
+            ]
+          },
+          {
+            id: "einsetzen",
+            prefix: "ein",
+            full: "einsetzen",
+            separable: true,
+            stars: 5,
+            onionLayer: 1,
+            angleDeg: 120,
+            color: "#7ae582",
+            locomotiveHint: "Vorsilbe ein- = Hineinbauen oder aktiv für ein Ziel nutzen",
+            svgType: "enter_box",
+            chunks: [
+              {
+                chunkLabel: "sich einsetzen + für (Ziel)",
+                visualTitle: "Für etwas kämpfen / engagieren",
+                sentence: "Sie **setzt** sich stark **für ihre Kinder** **ein**.",
+                meaningDe: "Aktiv für eine Person oder gute Sache helfen.",
+                ar: "يَدْعم بقوة / يُناضل من أجل...",
+                en: "to stand up for / advocate for",
+                tr: "bir şey için çaba göstermek / savunmak"
+              }
+            ]
+          },
+          {
+            id: "umsetzen",
+            prefix: "um",
+            full: "umsetzen",
+            separable: true,
+            stars: 5,
+            onionLayer: 1,
+            angleDeg: 240,
+            color: "#4cc9f0",
+            locomotiveHint: "Vorsilbe um- = Von der Idee in die echte Tat verwandeln",
+            svgType: "idea_to_action",
+            chunks: [
+              {
+                chunkLabel: "umsetzen + in die Praxis",
+                visualTitle: "Einen Plan wahr machen",
+                sentence: "Wir müssen unsere App-Idee jetzt **in die Praxis** **umsetzen**.",
+                meaningDe: "Einen Plan oder eine Idee wirklich realisieren.",
+                ar: "يُطَبِّق على أرض الواقع / يُنفِّذ خطة",
+                en: "to implement / put into practice",
+                tr: "hayata geçirmek / uygulamak"
+              }
+            ]
+          },
+          {
+            id: "durchsetzen",
+            prefix: "durch",
+            full: "durchsetzen",
+            separable: true,
+            stars: 4,
+            onionLayer: 2,
+            angleDeg: 60,
+            color: "#f9c74f",
+            locomotiveHint: "Vorsilbe durch- = Gegen Widerstand bis zum Ende gewinnen",
+            svgType: "arrive_pin",
+            chunks: [
+              {
+                chunkLabel: "sich durchsetzen + gegen",
+                visualTitle: "Gegen Widerstand gewinnen",
+                sentence: "Gute Ideen **setzen** sich am Ende immer **durch**.",
+                meaningDe: "Trotz Hindernissen Erfolg haben.",
+                ar: "يَفْرِض نفسه / يَنتصر رغم الصعوبات",
+                en: "to prevail / assert oneself",
+                tr: "kabul ettirmek / üstün gelmek"
+              }
+            ]
+          },
+          {
+            id: "aussetzen",
+            prefix: "aus",
+            full: "aussetzen",
+            separable: true,
+            stars: 3,
+            onionLayer: 3,
+            angleDeg: 300,
+            color: "#c77dff",
+            locomotiveHint: "Vorsilbe aus- = Eine Runde pausieren",
+            svgType: "pause_icon",
+            chunks: [
+              {
+                chunkLabel: "aussetzen + beim Training",
+                visualTitle: "Eine Pause einlegen",
+                sentence: "Wegen meiner Erkältung muss ich heute **beim Sport** **aussetzen**.",
+                meaningDe: "Vorübergehend nicht teilnehmen.",
+                ar: "يَتَوقّف مؤقتاً / يأخذ استراحة لجولة",
+                en: "to sit out / skip a turn",
+                tr: "ara vermek / pas geçmek"
+              }
+            ]
+          }
+        ]
+      },
+
+      nehmen: {
+        infinitive: "nehmen",
+        anchor_ar: "يَأخُذ",
+        anchor_en: "to take",
+        anchor_tr: "almak",
+        branches: [
+          {
+            id: "annehmen",
+            prefix: "an",
+            full: "annehmen",
+            separable: true,
+            stars: 5,
+            onionLayer: 1,
+            angleDeg: 30,
+            color: "#ff8a8a",
+            locomotiveHint: "Vorsilbe an- = Etwas Entgegenkommendes akzeptieren",
+            svgType: "together_dots",
+            chunks: [
+              {
+                chunkLabel: "annehmen + Paket / Angebot",
+                visualTitle: "Akzeptieren / Entgegennehmen",
+                sentence: "Ich **nehme** dein Job-Angebot sehr gerne **an**!",
+                meaningDe: "Ein Geschenk, Paket oder Angebot akzeptieren.",
+                ar: "يَقْبَل (عرضاً أو طرداً بريدياً)",
+                en: "to accept (an offer, package)",
+                tr: "kabul etmek / teslim almak"
+              }
+            ]
+          },
+          {
+            id: "mitnehmen",
+            prefix: "mit",
+            full: "mitnehmen",
+            separable: true,
+            stars: 5,
+            onionLayer: 1,
+            angleDeg: 150,
+            color: "#7ae582",
+            locomotiveHint: "Vorsilbe mit- = Beim Gehen bei sich tragen",
+            svgType: "visit_door",
+            chunks: [
+              {
+                chunkLabel: "mitnehmen + zum Essen (To-Go)",
+                visualTitle: "Dabeihaben / To-Go",
+                sentence: "Ich **nehme** meinen Regenschirm lieber **mit**.",
+                meaningDe: "Etwas oder jemanden auf dem Weg begleiten/tragen.",
+                ar: "يَأخُذ معه (سفري / في الطريق)",
+                en: "to take along / take away",
+                tr: "yanına almak / paket yaptırmak"
+              }
+            ]
+          },
+          {
+            id: "abnehmen",
+            prefix: "ab",
+            full: "abnehmen",
+            separable: true,
+            stars: 5,
+            onionLayer: 1,
+            angleDeg: 270,
+            color: "#4cc9f0",
+            locomotiveHint: "Vorsilbe ab- = Weniger werden (Gewicht) oder Last wegnehmen",
+            svgType: "hat_off",
+            chunks: [
+              {
+                chunkLabel: "abnehmen + 5 Kilo (Gewicht)",
+                visualTitle: "Gewicht verlieren",
+                sentence: "Durch gesundes Essen hat er schon fünf Kilo **abgenommen**.",
+                meaningDe: "Körpergewicht reduzieren.",
+                ar: "يَنْحَف / يَنقُص وزنه",
+                en: "to lose weight",
+                tr: "kilo vermek / zayıflamak"
+              }
+            ]
+          },
+          {
+            id: "teilnehmen",
+            prefix: "teil",
+            full: "teilnehmen",
+            separable: true,
+            stars: 4,
+            onionLayer: 2,
+            angleDeg: 90,
+            color: "#f9c74f",
+            locomotiveHint: "Vorsilbe teil- = Ein Teil einer Gruppe/Veranstaltung sein",
+            svgType: "enter_box",
+            chunks: [
+              {
+                chunkLabel: "teilnehmen + an (Kurs / Prüfung)",
+                visualTitle: "Aktiv mitmachen",
+                sentence: "Ich **nehme** ab Montag **an einem Deutschkurs** **teil**.",
+                meaningDe: "Bei einer Veranstaltung oder einem Kurs mitmachen.",
+                ar: "يُشارِك في... (teilnehmen + an)",
+                en: "to participate in",
+                tr: "katılmak (kursa, sınava)"
+              }
+            ]
+          }
+        ]
+      }
+    };
+
+    // ============================================================================
+    // APP STATE
+    // ============================================================================
+    let currentVerbKey = "kommen";
+    let currentOnionLayer = 1; // Standard: Nur Schicht 1 (Top 3 Überlebensverben)
+    let currentAnchorLang = "ar";
+    let selectedBranchId = "ankommen";
+    let selectedChunkIndex = 0;
+
+    // Quiz State
+    let isQuizMode = false;
+    let currentQuizBranch = null;
+    let quizHits = 0;
+    let quizTotal = 0;
+
+    // ============================================================================
+    // DUAL-CODING SVG GENERATOR (Minimalistische animierte Strichzeichnungen)
+    // ============================================================================
+    function getDualCodingSvg(type) {
+      const svgs = {
+        arrive_pin: `
+          <svg viewBox="0 0 80 80" class="w-16 h-16">
+            <line x1="12" y1="56" x2="68" y2="56" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="58" cy="42" r="7" fill="#ef4444" class="anim-pulse"/>
+            <path d="M16 42 L44 42 M38 35 L46 42 L38 49" stroke="#2563eb" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" class="anim-train"/>
+          </svg>`,
+        hat_off: `
+          <svg viewBox="0 0 80 80" class="w-16 h-16">
+            <!-- Kopf -->
+            <circle cx="40" cy="52" r="14" stroke="#334155" stroke-width="3" fill="#f8fafc"/>
+            <!-- Brille / Hut der sich absetzt -->
+            <g class="anim-down">
+              <path d="M22 22 L58 22 M28 14 L52 14 L54 22 L26 22 Z" stroke="#e11d48" stroke-width="3" fill="#fda4af" stroke-linejoin="round"/>
+              <path d="M40 26 L40 36 M36 32 L40 37 L44 32" stroke="#e11d48" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            </g>
+          </svg>`,
+        together_dots: `
+          <svg viewBox="0 0 80 80" class="w-16 h-16">
+            <g class="anim-train">
+              <circle cx="28" cy="40" r="9" fill="#10b981"/>
+              <circle cx="48" cy="40" r="9" fill="#3b82f6"/>
+              <path d="M20 56 L62 56 M55 50 L62 56 L55 62" stroke="#0f172a" stroke-width="3" fill="none" stroke-linecap="round"/>
+            </g>
+          </svg>`,
+        return_arrow: `
+          <svg viewBox="0 0 80 80" class="w-16 h-16">
+            <circle cx="22" cy="45" r="7" fill="#0284c7"/>
+            <path d="M26 34 C45 14, 65 26, 52 46 L32 46" stroke="#0284c7" stroke-width="3.5" fill="none" stroke-linecap="round" class="anim-train"/>
+            <polyline points="38,40 30,46 38,52" stroke="#0284c7" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          </svg>`,
+        visit_door: `
+          <svg viewBox="0 0 80 80" class="w-16 h-16">
+            <rect x="42" y="18" width="22" height="44" rx="3" stroke="#475569" stroke-width="3" fill="#fef3c7"/>
+            <circle cx="48" cy="40" r="2" fill="#475569"/>
+            <circle cx="24" cy="42" r="7" fill="#f59e0b" class="anim-train"/>
+          </svg>`,
+        enter_box: `
+          <svg viewBox="0 0 80 80" class="w-16 h-16">
+            <path d="M38 18 L64 18 L64 62 L38 62" stroke="#475569" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <g class="anim-train">
+              <circle cx="26" cy="40" r="7" fill="#8b5cf6"/>
+              <path d="M35 40 L52 40 M46 34 L53 40 L46 46" stroke="#8b5cf6" stroke-width="3" fill="none" stroke-linecap="round"/>
+            </g>
+          </svg>`,
+        idea_to_action: `
+          <svg viewBox="0 0 80 80" class="w-16 h-16">
+            <circle cx="24" cy="38" r="9" stroke="#eab308" stroke-width="3" fill="#fef08a"/>
+            <path d="M37 38 L49 38" stroke="#64748b" stroke-width="3" stroke-dasharray="3 3"/>
+            <rect x="52" y="28" width="18" height="20" rx="3" fill="#10b981" class="anim-down"/>
+          </svg>`,
+        pause_icon: `
+          <svg viewBox="0 0 80 80" class="w-16 h-16">
+            <circle cx="40" cy="40" r="22" stroke="#a855f7" stroke-width="3" fill="#f3e8ff"/>
+            <line x1="34" y1="30" x2="34" y2="50" stroke="#7e22ce" stroke-width="4" stroke-linecap="round"/>
+            <line x1="46" y1="30" x2="46" y2="50" stroke="#7e22ce" stroke-width="4" stroke-linecap="round"/>
+          </svg>`,
+        balance_scale: `
+          <svg viewBox="0 0 80 80" class="w-16 h-16">
+            <path d="M20 46 L60 46 M40 26 L40 58" stroke="#0d9488" stroke-width="3.5" stroke-linecap="round"/>
+            <circle cx="24" cy="38" r="6" fill="#14b8a6" class="anim-down"/>
+            <circle cx="56" cy="38" r="6" fill="#14b8a6"/>
+          </svg>`
+      };
+      return svgs[type] || svgs.arrive_pin;
+    }
+
+    // ============================================================================
+    // RENDER ORBITAL MINDMAP (Mindly-Geometrie + Zwiebel-Filter)
+    // ============================================================================
+    function renderMindmap() {
+      const verbObj = VERB_DB[currentVerbKey];
+      const container = document.getElementById("orbitNodesContainer");
+      const svgLines = document.getElementById("orbitLinesSvg");
+      container.innerHTML = "";
+      svgLines.innerHTML = "";
+
+      // Update Center Node
+      document.getElementById("centerVerbTitle").textContent = verbObj.infinitive;
+      const anchorEl = document.getElementById("centerVerbAnchor");
+      if (currentAnchorLang === "off") {
+        anchorEl.textContent = "";
+      } else {
+        anchorEl.textContent = verbObj[`anchor_${currentAnchorLang}`] || verbObj.anchor_ar;
+        anchorEl.className = `text-xs text-blue-100 mt-0.5 ${currentAnchorLang === 'ar' ? 'arabic-text' : ''}`;
+      }
+
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height * 0.55;
+      const radius = Math.min(rect.width, rect.height) * 0.34;
+
+      verbObj.branches.forEach((branch) => {
+        // Berechne feste Uhrzeit-Position (damit das räumliche Gedächtnis funktioniert!)
+        const rad = ((branch.angleDeg - 90) * Math.PI) / 180;
+        const x = centerX + radius * Math.cos(rad);
+        const y = centerY + radius * Math.sin(rad);
+
+        const isUnlocked = branch.onionLayer <= currentOnionLayer;
+        const isSelected = branch.id === selectedBranchId && !isQuizMode;
+
+        // Linie vom Zentrum zum Ast
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", centerX);
+        line.setAttribute("y1", centerY);
+        line.setAttribute("x2", x);
+        line.setAttribute("y2", y);
+        line.setAttribute("stroke", isUnlocked ? (isSelected ? "#2563eb" : "#cbd5e1") : "#e2e8f0");
+        line.setAttribute("stroke-width", isSelected ? "3" : "2");
+        if (branch.separable) {
+          line.setAttribute("stroke-dasharray", "5,4");
+        }
+        svgLines.appendChild(line);
+
+        // Wenn der Ast in einer höheren Zwiebel-Schicht liegt: nur dezenter "+" Platzhalter auf dem Ring (wie in Mindly!)
+        if (!isUnlocked) {
+          const lockedDot = document.createElement("button");
+          lockedDot.className = "orbit-node pointer-events-auto absolute w-8 h-8 rounded-full bg-slate-200/90 hover:bg-slate-300 text-slate-600 font-bold text-xs flex items-center justify-center shadow-sm";
+          lockedDot.style.left = `${x}px`;
+          lockedDot.style.top = `${y}px`;
+          lockedDot.style.transform = "translate(-50%, -50%)";
+          lockedDot.title = `Schicht ${branch.onionLayer} freischalten (${branch.stars}★)`;
+          lockedDot.innerHTML = `+`;
+          lockedDot.onclick = () => setOnionLayer(branch.onionLayer);
+          container.appendChild(lockedDot);
+          return;
+        }
+
+        // Aktiver Planet-Kreis (Mindly-Style)
+        const node = document.createElement("div");
+        node.id = `node_${branch.id}`;
+        node.className = `orbit-node pointer-events-auto absolute w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center text-center p-2 cursor-pointer shadow-lg ${
+          isSelected ? "ring-4 ring-blue-600 ring-offset-2 scale-105" : ""
+        }`;
+        node.style.left = `${x}px`;
+        node.style.top = `${y}px`;
+        node.style.transform = "translate(-50%, -50%)";
+        node.style.backgroundColor = branch.color;
+
+        if (isQuizMode) {
+          // 5. SPACED REPETITION QUIZ: Leere Äste! Das Gehirn muss über die Raumposition erinnern
+          node.innerHTML = `
+            <span class="text-2xl font-black text-slate-900/70">?</span>
+            <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/70 text-slate-800 mt-1">
+              Hier tippen
+            </span>
+          `;
+        } else {
+          // Normaler Lernmodus mit Vorsilbe + Chunk-Baustein direkt auf dem Knoten
+          const primaryChunk = branch.chunks[0].chunkLabel.split("+")[1] || "";
+          node.innerHTML = `
+            <span class="text-[10px] font-bold text-slate-900/70">${"★".repeat(branch.stars)}</span>
+            <span class="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">
+              <span class="underline decoration-2">${branch.prefix}</span>|${verbObj.infinitive}
+            </span>
+            <span class="mt-1 px-2 py-0.5 rounded-full bg-white/85 text-slate-900 font-extrabold text-[10px] shadow-sm">
+              + ${primaryChunk.trim()}
+            </span>
+          `;
+        }
+
+        node.onclick = () => handleBranchClick(branch);
+        container.appendChild(node);
+      });
+    }
+
+    // ============================================================================
+    // INSPECTOR CARD UPDATER (Dual-Coding + Chunking + Anchoring)
+    // ============================================================================
+    function updateLearningCard() {
+      const verbObj = VERB_DB[currentVerbKey];
+      const branch = verbObj.branches.find((b) => b.id === selectedBranchId) || verbObj.branches[0];
+      const chunk = branch.chunks[selectedChunkIndex] || branch.chunks[0];
+
+      document.getElementById("cardPrefixBadge").textContent = `${branch.prefix}|${verbObj.infinitive}`;
+      document.getElementById("cardSepBadge").textContent = branch.separable ? "✂️ trennbar" : "🔒 untrennbar";
+      document.getElementById("cardStars").textContent = "★".repeat(branch.stars) + "☆".repeat(5 - branch.stars);
+
+      // 1. Dual-Coding Animation setzen
+      document.getElementById("dualCodingSvgBox").innerHTML = getDualCodingSvg(branch.svgType);
+      document.getElementById("cardVisualTitle").textContent = chunk.visualTitle;
+      document.getElementById("cardLocomotiveHint").innerHTML = `🚂 ${branch.locomotiveHint}`;
+
+      // 3. Chunk-Pills rendern
+      const chunkContainer = document.getElementById("chunkPillsContainer");
+      chunkContainer.innerHTML = "";
+      branch.chunks.forEach((c, idx) => {
+        const btn = document.createElement("button");
+        const active = idx === selectedChunkIndex;
+        btn.className = `px-3 py-1.5 rounded-xl text-xs font-extrabold transition ${
+          active
+            ? "bg-emerald-600 text-white shadow-sm"
+            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+        }`;
+        btn.textContent = `🧩 ${c.chunkLabel}`;
+        btn.onclick = () => {
+          selectedChunkIndex = idx;
+          updateLearningCard();
+        };
+        chunkContainer.appendChild(btn);
+      });
+
+      // Beispielsatz mit Hervorhebung
+      const formattedSentence = chunk.sentence.replace(/\*\*(.*?)\*\*/g, '<span class="text-emerald-700 font-extrabold underline decoration-emerald-500 decoration-2">$1</span>');
+      document.getElementById("cardExampleSentence").innerHTML = `„${formattedSentence}“`;
+      document.getElementById("cardMeaningDe").textContent = chunk.meaningDe;
+
+      // 4. Muttersprachen-Anker
+      const anchorBox = document.getElementById("anchorBox");
+      const anchorText = document.getElementById("cardNativeAnchorText");
+      if (currentAnchorLang === "off") {
+        anchorBox.classList.add("hidden");
+      } else {
+        anchorBox.classList.remove("hidden");
+        anchorText.textContent = chunk[currentAnchorLang] || chunk.ar;
+        anchorText.className = `text-sm font-bold text-slate-900 mt-0.5 ${currentAnchorLang === 'ar' ? 'arabic-text' : ''}`;
+      }
+    }
+
+    // ============================================================================
+    // INTERAKTIONEN & TOPOGRAFISCHES QUIZ
+    // ============================================================================
+    function handleBranchClick(branch) {
+      if (isQuizMode) {
+        checkQuizAnswer(branch);
+        return;
+      }
+      selectedBranchId = branch.id;
+      selectedChunkIndex = 0;
+      renderMindmap();
+      updateLearningCard();
+    }
+
+    function setOnionLayer(layer) {
+      currentOnionLayer = layer;
+      [1, 2, 3].forEach((n) => {
+        const btn = document.getElementById(`layerBtn${n}`);
+        if (n === layer) {
+          btn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-blue-600 text-white shadow-sm";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition-all text-slate-600 hover:bg-slate-100";
+        }
+      });
+      renderMindmap();
+      if (isQuizMode) nextQuizQuestion();
+    }
+
+    function switchBaseVerb(verbKey) {
+      currentVerbKey = verbKey;
+      selectedBranchId = VERB_DB[verbKey].branches[0].id;
+      selectedChunkIndex = 0;
+      document.getElementById("parentLabel").textContent = "Top 50";
+      renderMindmap();
+      updateLearningCard();
+      if (isQuizMode) nextQuizQuestion();
+    }
+
+    function setAnchorLanguage(lang) {
+      currentAnchorLang = lang;
+      renderMindmap();
+      updateLearningCard();
+    }
+
+    function toggleLokomotiveModal() {
+      const modal = document.getElementById("lokomotiveModal");
+      modal.classList.toggle("hidden");
+    }
+
+    // 5. SPACED REPETITION QUIZ LOGIK (Räumliches Erinnern)
+    function toggleQuizMode() {
+      isQuizMode = !isQuizMode;
+      const btn = document.getElementById("quizToggleBtn");
+      const banner = document.getElementById("quizBanner");
+
+      if (isQuizMode) {
+        btn.textContent = "✕ Quiz beenden";
+        btn.className = "px-3.5 py-2 rounded-xl text-xs font-extrabold bg-slate-800 text-white shadow-md";
+        banner.classList.remove("hidden");
+        nextQuizQuestion();
+      } else {
+        btn.textContent = "🧠 Räumliches Quiz";
+        btn.className = "px-3.5 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md";
+        banner.classList.add("hidden");
+        renderMindmap();
+      }
+    }
+
+    function nextQuizQuestion() {
+      const verbObj = VERB_DB[currentVerbKey];
+      const unlockedBranches = verbObj.branches.filter((b) => b.onionLayer <= currentOnionLayer);
+      currentQuizBranch = unlockedBranches[Math.floor(Math.random() * unlockedBranches.length)];
+      const chunk = currentQuizBranch.chunks[0];
+
+      // Verstecke das Präfix im Beispielsatz
+      const maskedSentence = chunk.sentence
+        .replace(new RegExp(`\\*\\*${currentQuizBranch.prefix}\\*\\*`, "gi"), "<b>[ ___ ]</b>")
+        .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+
+      document.getElementById("quizPromptSentence").innerHTML = `Wo liegt das Verb für: „${maskedSentence}“?`;
+      const nativeHint = currentAnchorLang !== "off" ? ` (${chunk[currentAnchorLang]})` : "";
+      document.getElementById("quizHintChunk").textContent = `Tipp: ${chunk.visualTitle}${nativeHint}`;
+      renderMindmap();
+    }
+
+    function checkQuizAnswer(clickedBranch) {
+      quizTotal++;
+      const nodeEl = document.getElementById(`node_${clickedBranch.id}`);
+
+      if (clickedBranch.id === currentQuizBranch.id) {
+        quizHits++;
+        selectedBranchId = clickedBranch.id;
+        selectedChunkIndex = 0;
+        updateLearningCard();
+
+        // Erfolgs-Feedback direkt auf dem Knoten
+        nodeEl.innerHTML = `
+          <span class="text-lg">✅</span>
+          <span class="text-xs font-extrabold text-slate-900">${clickedBranch.prefix}|${VERB_DB[currentVerbKey].infinitive}</span>
+        `;
+        document.getElementById("quizScoreText").textContent = `Treffer: ${quizHits} / ${quizTotal}`;
+        setTimeout(() => {
+          if (isQuizMode) nextQuizQuestion();
+        }, 1100);
+      } else {
+        nodeEl.classList.add("shake-error");
+        document.getElementById("quizScoreText").textContent = `Treffer: ${quizHits} / ${quizTotal}`;
+        setTimeout(() => nodeEl.classList.remove("shake-error"), 400);
+      }
+    }
+
+    // Sprachausgabe (Web Speech API)
+    function speakCurrentSentence() {
+      if (!("speechSynthesis" in window)) return;
+      const verbObj = VERB_DB[currentVerbKey];
+      const branch = verbObj.branches.find((b) => b.id === selectedBranchId) || verbObj.branches[0];
+      const cleanText = branch.chunks[selectedChunkIndex].sentence.replace(/\*\*/g, "");
+      const utter = new SpeechSynthesisUtterance(cleanText);
+      utter.lang = "de-DE";
+      utter.rate = 0.88; // Leicht verlangsamt gegen akustischen Overload
+      window.speechSynthesis.speak(utter);
+    }
+
+    function showBaseVerbInfo() {
+      toggleLokomotiveModal();
+    }
+
+    function resetToBaseOverview() {
+      const keys = Object.keys(VERB_DB);
+      const nextIdx = (keys.indexOf(currentVerbKey) + 1) % keys.length;
+      document.getElementById("verbSelect").value = keys[nextIdx];
+      switchBaseVerb(keys[nextIdx]);
+    }
+
+    window.addEventListener("resize", renderMindmap);
+    window.addEventListener("DOMContentLoaded", () => {
+      renderMindmap();
+      updateLearningCard();
+    });
+  </script>
+</body>
+</html>

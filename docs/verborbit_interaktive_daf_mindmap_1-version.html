@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VerbOrbit – Visuelle DaF Verb-Mindmap (Mindly Edition)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-soft: #f8f7fc;
+      --orbit-line: #d8d4e8;
+    }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 80% 15%, #efe8ff 0%, #f8f9fe 52%, #eef6ff 100%);
+      overflow-x: hidden;
+      color: #1e293b;
+    }
+    /* Smooth Orbital Animations */
+    .orbit-transition {
+      transition: all 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .node-circle {
+      transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, opacity 0.3s ease;
+    }
+    .node-circle:hover {
+      transform: translate(-50%, -50%) scale(1.09);
+      z-index: 35 !important;
+    }
+    .node-circle:active {
+      transform: translate(-50%, -50%) scale(0.96);
+    }
+    .center-circle-anim {
+      animation: pulseCenter 4s ease-in-out infinite;
+    }
+    @keyframes pulseCenter {
+      0%, 100% { box-shadow: 0 18px 40px -10px rgba(37, 99, 235, 0.38), 0 0 0 8px rgba(59, 130, 246, 0.10); }
+      50% { box-shadow: 0 22px 48px -8px rgba(37, 99, 235, 0.50), 0 0 0 14px rgba(59, 130, 246, 0.16); }
+    }
+    @keyframes popIn {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+      100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+    .pop-in {
+      animation: popIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    /* Custom scrollbar for drawers */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between relative">
+
+  <!-- TOP FLOATING NAVIGATION BAR -->
+  <header class="w-full z-40 px-3 sm:px-6 pt-3 pb-2 flex flex-wrap items-center justify-between gap-2 bg-white/75 backdrop-blur-md border-b border-slate-200/70 sticky top-0">
+    <!-- Left: Menu Button & Brand -->
+    <div class="flex items-center gap-2.5">
+      <button id="btnOpenCatalog" title="Alle 50 Verben & Suche" class="w-11 h-11 rounded-full bg-white shadow-md border border-slate-200/80 flex items-center justify-center hover:bg-slate-50 active:scale-95 transition">
+        <svg class="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h12"/>
+        </svg>
+      </button>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">VerbOrbit</span>
+          <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Mindly DaF MVP</span>
+        </div>
+        <p id="breadcrumbText" class="text-xs text-slate-500 hidden sm:block">Top 50 Basisverben • Visuelles Wortstamm-Netzwerk</p>
+      </div>
+    </div>
+
+    <!-- Center: Star Relevance Filter & CEFR Filter -->
+    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+      <!-- 5-Star Relevance Filter -->
+      <div class="flex items-center gap-1.5 bg-slate-100/90 px-3 py-1.5 rounded-full border border-slate-200/80 shadow-inner">
+        <span class="text-xs font-semibold text-slate-600 mr-1 hidden md:inline">Alltagsrelevanz:</span>
+        <div id="starFilterContainer" class="flex items-center gap-0.5 cursor-pointer" title="Mindest-Häufigkeit (Sterne) filtern">
+          <button data-star="1" class="star-btn text-amber-400 hover:scale-110 transition text-base leading-none">★</button>
+          <button data-star="2" class="star-btn text-amber-400 hover:scale-110 transition text-base leading-none">★</button>
+          <button data-star="3" class="star-btn text-amber-400 hover:scale-110 transition text-base leading-none">★</button>
+          <button data-star="4" class="star-btn text-slate-300 hover:scale-110 transition text-base leading-none">★</button>
+          <button data-star="5" class="star-btn text-slate-300 hover:scale-110 transition text-base leading-none">★</button>
+        </div>
+        <span id="starFilterLabel" class="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full ml-1">ab 1★ (Alle)</span>
+      </div>
+
+      <!-- CEFR Level Filter -->
+      <div id="cefrFilterGroup" class="flex items-center bg-slate-100/90 p-1 rounded-full border border-slate-200/80 text-xs font-bold">
+        <button data-level="ALL" class="cefr-btn px-2.5 py-1 rounded-full bg-white text-slate-800 shadow-sm transition">Alle</button>
+        <button data-level="A1" class="cefr-btn px-2 py-1 rounded-full text-slate-600 hover:text-slate-900 transition">A1</button>
+        <button data-level="A2" class="cefr-btn px-2 py-1 rounded-full text-slate-600 hover:text-slate-900 transition">A2</button>
+        <button data-level="B1" class="cefr-btn px-2 py-1 rounded-full text-slate-600 hover:text-slate-900 transition">B1</button>
+        <button data-level="B2" class="cefr-btn px-2 py-1 rounded-full text-slate-600 hover:text-slate-900 transition">B2+</button>
+      </div>
+    </div>
+
+    <!-- Right: Mode Toggle & Mindly Undo/Redo Pill -->
+    <div class="flex items-center gap-2">
+      <button id="btnToggleRootMode" class="text-xs font-semibold px-3 py-2 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 transition flex items-center gap-1.5">
+        <span id="rootModeIcon">🪐</span>
+        <span id="rootModeLabel" class="hidden sm:inline">Ansicht: Kategorien</span>
+      </button>
+
+      <!-- Mindly-style Undo / Back Pill -->
+      <div class="flex items-center bg-white rounded-full shadow-md border border-slate-200/80 p-1">
+        <button id="btnHistoryBack" title="Schritt zurück (Ebene hoch)" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 disabled:opacity-35 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"/>
+          </svg>
+        </button>
+        <button id="btnResetHome" title="Zum Haupt-Zentrum (Verben)" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN INTERACTIVE MINDLY CANVAS AREA -->
+  <main class="flex-1 flex flex-col lg:flex-row items-center justify-center relative overflow-hidden px-2 py-2">
+    
+    <!-- Orbital Stage Container -->
+    <div id="orbitStage" class="relative w-full max-w-[780px] h-[640px] sm:h-[700px] flex items-center justify-center select-none">
+      
+      <!-- SVG Layer for Mindly Vertical Parent Line, Orbit Ring & Plus Markers -->
+      <svg id="orbitSvg" class="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 780 700" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="parentLineGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#94a3b8" stop-opacity="0.65"/>
+            <stop offset="100%" stop-color="#64748b" stop-opacity="0.35"/>
+          </linearGradient>
+          <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.10"/>
+          </filter>
+        </defs>
+        <!-- Vertical line from Parent Circle (top) to Center Circle -->
+        <line id="svgParentLine" x1="390" y1="100" x2="390" y2="380" stroke="url(#parentLineGrad)" stroke-width="2" class="hidden" />
+        
+        <!-- Main Orbital Ring -->
+        <circle id="svgOrbitRing" cx="390" cy="390" r="210" fill="none" stroke="#d6d3e6" stroke-width="2" />
+
+        <!-- Dynamic Connector Spokes & Mindly '+' Ring Badges injected via JS -->
+        <g id="svgDynamicMarkers"></g>
+      </svg>
+
+      <!-- Dynamic DOM Nodes Container (Parent Circle, Center Circle, Orbiting Circles) -->
+      <div id="nodesLayer" class="absolute inset-0 w-full h-full z-10"></div>
+
+      <!-- Orbit Pagination Controls (When a ring has more items than fit on 1 orbit page, e.g., 50 verbs view) -->
+      <div id="orbitPager" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full shadow-lg border border-slate-200">
+        <button id="btnPrevPage" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-indigo-100 text-slate-700 font-bold flex items-center justify-center transition">‹</button>
+        <span id="pagerInfo" class="text-xs font-bold text-slate-700">Orbit 1 / 5</span>
+        <button id="btnNextPage" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-indigo-100 text-slate-700 font-bold flex items-center justify-center transition">›</button>
+      </div>
+    </div>
+
+    <!-- RIGHT / BOTTOM CONTEXT PANEL: Verb Info, JSON Export & Active Meaning Card -->
+    <aside id="infoPanel" class="w-full lg:w-[400px] xl:w-[430px] lg:mr-6 mb-4 lg:mb-0 z-20">
+      <div class="bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl border border-slate-200/90 p-5 sm:p-6 transition-all">
+        <!-- Dynamic Info Card Header -->
+        <div id="panelContent">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- FOOTER BAR: Quick Flagship Verb Switcher & JSON Schema Preview Trigger -->
+  <footer class="w-full z-30 bg-white/80 backdrop-blur-md border-t border-slate-200/70 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+    <div class="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full">
+      <span class="font-bold text-slate-500 shrink-0 mr-1">🔥 Direkt-Sprung:</span>
+      <button onclick="jumpToVerb('setzen')" class="px-2.5 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold shrink-0 transition">setzen</button>
+      <button onclick="jumpToVerb('kommen')" class="px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold shrink-0 transition">kommen</button>
+      <button onclick="jumpToVerb('gehen')" class="px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold shrink-0 transition">gehen</button>
+      <button onclick="jumpToVerb('nehmen')" class="px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold shrink-0 transition">nehmen</button>
+      <button onclick="jumpToVerb('stellen')" class="px-2.5 py-1 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold shrink-0 transition">stellen</button>
+      <button onclick="jumpToVerb('halten')" class="px-2.5 py-1 rounded-full bg-cyan-50 hover:bg-cyan-100 text-cyan-700 font-semibold shrink-0 transition">halten</button>
+      <button onclick="jumpToVerb('ziehen')" class="px-2.5 py-1 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold shrink-0 transition">ziehen</button>
+      <button onclick="jumpToVerb('lassen')" class="px-2.5 py-1 rounded-full bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold shrink-0 transition">lassen</button>
+      <button onclick="jumpToVerb('schlagen')" class="px-2.5 py-1 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-700 font-semibold shrink-0 transition">schlagen</button>
+    </div>
+    <div class="flex items-center gap-2 ml-auto">
+      <button id="btnOpenJsonModal" class="px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-900 text-white font-semibold transition flex items-center gap-1">
+        <span>{ } JSON / Prompt für Cursor</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- DRAWER: ALL 50 BASE VERBS & INSTANT SEARCH -->
+  <div id="catalogDrawer" class="fixed inset-0 z-50 hidden">
+    <div id="catalogBackdrop" class="absolute inset-0 bg-slate-900/40 backdrop-blur-xs"></div>
+    <div class="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col z-10 p-5">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div>
+          <h2 class="text-lg font-extrabold text-slate-800">Top 50 Deutsche Basisverben</h2>
+          <p class="text-xs text-slate-500">Wähle ein Verb für das Mindly-Zentrum</p>
+        </div>
+        <button id="btnCloseCatalog" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
+      </div>
+
+      <!-- Search Input -->
+      <div class="my-3 relative">
+        <input id="verbSearchInput" type="text" placeholder="Verb oder Präfix suchen (z.B. setzen, absetzen)..." class="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-slate-100 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition" />
+        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+      </div>
+
+      <!-- List of 50 Verbs -->
+      <div id="verbCatalogList" class="flex-1 overflow-y-auto space-y-1.5 pr-1"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: JSON DATA & CURSOR/ANTIGRAVITY MASTER PROMPT -->
+  <div id="jsonModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div id="jsonModalBackdrop" class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs"></div>
+    <div class="relative bg-white rounded-3xl max-w-3xl w-full max-h-[85vh] shadow-2xl border border-slate-200 flex flex-col z-10 overflow-hidden">
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-base">Aktuelles Verb-JSON & Cursor / Antigravity Architektur-Prompt</h3>
+          <p class="text-xs text-slate-400">Direkt zum Kopieren für dein Produktions-Backend</p>
+        </div>
+        <button id="btnCloseJsonModal" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center">✕</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4 text-xs font-mono bg-slate-50 flex-1">
+        <div class="flex items-center justify-between">
+          <span class="font-sans font-bold text-slate-700 text-sm">Live JSON-Struktur des aktuell ausgewählten Knotens:</span>
+          <button id="btnCopyJson" class="font-sans px-3 py-1 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition">JSON kopieren</button>
+        </div>
+        <pre id="jsonPreviewBox" class="bg-slate-900 text-emerald-300 p-4 rounded-2xl overflow-x-auto text-[11px] leading-relaxed"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /********************************************************************
+     * 1. MINDLY COLOR PALETTE (matches user screenshot aesthetics)
+     ********************************************************************/
+    const MINDLY_COLORS = [
+      { bg: '#ff9ea2', text: '#58131c', badge: '#ffffff', ring: '#fca5a5', name: 'Coral' },     // Winetour Piemonte pink
+      { bg: '#8cf2b8', text: '#0b4627', badge: '#ffffff', ring: '#6ee7b7', name: 'Mint' },      // Wien Zoo green
+      { bg: '#f6ad55', text: '#5c2d06', badge: '#ffffff', ring: '#fdba74', name: 'Amber' },     // Lissabon orange
+      { bg: '#38d996', text: '#064e3b', badge: '#ffffff', ring: '#34d399', name: 'Emerald' },   // Paris green
+      { bg: '#4db5ff', text: '#0a3966', badge: '#ffffff', ring: '#7dd3fc', name: 'Sky' },       // Prague blue
+      { bg: '#c4b5fd', text: '#3b1d82', badge: '#ffffff', ring: '#ddd6fe', name: 'Lavender' },  // Soft purple
+      { bg: '#fde047', text: '#523e04', badge: '#ffffff', ring: '#fef08a', name: 'Sun' },       // Warm yellow
+      { bg: '#f9a8d4', text: '#591036', badge: '#ffffff', ring: '#fbcfe8', name: 'Rose' }       // Soft rose
+    ];
+
+    /********************************************************************
+     * 2. CATEGORIES FOR LEVEL-0 ORBIT ("Verben" in Center)
+     ********************************************************************/
+    const VERB_CATEGORIES = [
+      { id: 'cat_move', title: 'Bewegung & Ort', icon: '🏃', color: '#4db5ff', desc: 'kommen, gehen, fahren, laufen, fallen, ziehen...' },
+      { id: 'cat_pos', title: 'Position & Stellen', icon: '🪑', color: '#ff9ea2', desc: 'setzen, stellen, legen, stehen, sitzen, liegen...' },
+      { id: 'cat_give', title: 'Geben & Nehmen', icon: '🤲', color: '#8cf2b8', desc: 'nehmen, geben, bringen, holen, halten, tragen...' },
+      { id: 'cat_act', title: 'Machen & Alltag', icon: '⚡', color: '#f6ad55', desc: 'machen, tun, lassen, arbeiten, spielen, öffnen...' },
+      { id: 'cat_comm', title: 'Sprechen & Sinn', icon: '💬', color: '#c4b5fd', desc: 'sprechen, sagen, sehen, schauen, hören, lesen...' },
+      { id: 'cat_form', title: 'Form & Kraft', icon: '🔨', color: '#38d996', desc: 'schlagen, schneiden, brechen, drücken, werfen, drehen...' }
+    ];
+
+    /********************************************************************
+     * 3. RICH DATASET: TOP 50 GERMAN BASE VERBS & FLAGSHIP PREFIX TREES
+     ********************************************************************/
+    const FLAGSHIP_VERBS = {
+      setzen: {
+        infinitive: 'setzen',
+        category: 'cat_pos',
+        cefr: 'A1',
+        stars: 5,
+        icon: '🪑',
+        stemForms: 'setzt • setzte • hat gesetzt',
+        coreConcept: 'Etwas/jemanden an einen Platz bringen (Kausativ zu „sitzen“).',
+        derivatives: [
+          {
+            prefix: 'ab', fullVerb: 'absetzen', separable: true, stress: 'AB-setzen', stars: 5, cefr: 'B1',
+            hint: 'Trennung nach unten, Entfernung oder Abzug',
+            meanings: [
+              { id: 'ab_1', label: 'Brille / Hut abnehmen', icon: '👓⬇️', stars: 4, cefr: 'B1', def: 'Etwas, das man auf dem Kopf oder im Gesicht trägt, abnehmen.', ex: 'Er **setzt** seine Brille **ab**, um sich die Augen zu reiben.', collocations: ['die Brille absetzen', 'den Helm absetzen', 'die Maske absetzen'] },
+              { id: 'ab_2', label: 'Steuern sparen', icon: '🧾💰', stars: 5, cefr: 'B2', def: 'Berufliche Ausgaben in der Steuererklärung geltend machen.', ex: 'Du kannst deinen neuen Laptop beruflich von der Steuer **absetzen**.', collocations: ['von der Steuer absetzen', 'Fahrtkosten absetzen'] },
+              { id: 'ab_3', label: 'Medikament beenden', icon: '💊🚫', stars: 4, cefr: 'B1', def: 'Die Einnahme eines Medikaments geplant oder abrupt stoppen.', ex: 'Sie dürfen das Antibiotikum nicht ohne ärztlichen Rat **absetzen**.', collocations: ['Tabletten absetzen', 'ein Medikament absetzen'] },
+              { id: 'ab_4', label: 'Person aussteigen lassen', icon: '🚗🚶', stars: 4, cefr: 'B1', def: 'Jemanden im Auto mitnehmen und an einem Zielort rauslassen.', ex: 'Kannst du mich vorne am Bahnhof **absetzen**?', collocations: ['jemanden am Bahnhof absetzen'] }
+            ]
+          },
+          {
+            prefix: 'ein', fullVerb: 'einsetzen', separable: true, stress: 'EIN-setzen', stars: 5, cefr: 'B1',
+            hint: 'In etwas hineinbringen, beginnen oder als Mittel nutzen',
+            meanings: [
+              { id: 'ein_1', label: 'Anwenden / Nutzen', icon: '🛠️⚡', stars: 5, cefr: 'B1', def: 'Ein Werkzeug, Geld oder Fähigkeiten gezielt für einen Zweck verwenden.', ex: 'Die Firma **setzt** moderne KI-Systeme **ein**, um Zeit zu sparen.', collocations: ['Technik einsetzen', 'Ressourcen einsetzen'] },
+              { id: 'ein_2', label: 'Sich engagieren (reflexiv)', icon: '🤝🔥', stars: 5, cefr: 'B1', def: 'Sich aktiv für jemanden oder ein Ziel starkmachen.', ex: 'Sie **setzt** sich leidenschaftlich für den Umweltschutz **ein**.', collocations: ['sich für Kollegen einsetzen', 'sich für Frieden einsetzen'] },
+              { id: 'ein_3', label: 'Plötzlich beginnen', icon: '🌧️⏱️', stars: 3, cefr: 'B2', def: 'Ein Naturereignis oder Zustand fängt spürbar an.', ex: 'Gegen Abend **setzte** starker Schneefall **ein**.', collocations: ['der Regen setzt ein', 'die Wirkung setzt ein'] }
+            ]
+          },
+          {
+            prefix: 'um', fullVerb: 'umsetzen', separable: true, stress: 'UM-setzen', stars: 5, cefr: 'B1',
+            hint: 'Von der Idee in die Tat (Transformation) oder Platzwechsel',
+            meanings: [
+              { id: 'um_1', label: 'Plan realisieren', icon: '💡🚀', stars: 5, cefr: 'B1', def: 'Eine Idee, ein Konzept oder einen Plan praktisch verwirklichen.', ex: 'Wir wollen dieses App-Konzept noch diesen Monat **umsetzen**.', collocations: ['einen Plan umsetzen', 'in die Tat umsetzen'] },
+              { id: 'um_2', label: 'Umsatz machen (Wirtschaft)', icon: '📈💶', stars: 4, cefr: 'B2', def: 'Waren verkaufen und dadurch eine bestimmte Geldsumme einnehmen.', ex: 'Das Unternehmen hat im letzten Jahr zehn Millionen Euro **umgesetzt**.', collocations: ['Millionen umsetzen', 'Waren umsetzen'] },
+              { id: 'um_3', label: 'Auf anderen Platz setzen', icon: '🪑🔄', stars: 3, cefr: 'A2', def: 'Einen anderen Sitzplatz einnehmen oder Pflanzen umpflanzen.', ex: 'Der Lehrer hat die beiden lauten Schüler **umgesetzt**.', collocations: ['sich im Kino umsetzen'] }
+            ]
+          },
+          {
+            prefix: 'durch', fullVerb: 'durchsetzen', separable: true, stress: 'DURCH-setzen', stars: 5, cefr: 'B2',
+            hint: 'Widerstand überwinden bis zum Ziel',
+            meanings: [
+              { id: 'du_1', label: 'Erfolg trotz Widerstand', icon: '🏆💪', stars: 5, cefr: 'B2', def: 'Eigene Ideen oder Forderungen gegen Widerstand anderer erreichen.', ex: 'In der Verhandlung konnte sie ihre Gehaltsforderung **durchsetzen**.', collocations: ['seinen Willen durchsetzen', 'sich am Markt durchsetzen'] },
+              { id: 'du_2', label: 'Gesetz / Regel erzwingen', icon: '⚖️🛡️', stars: 4, cefr: 'B2', def: 'Dafür sorgen, dass Regeln oder Gesetze eingehalten werden.', ex: 'Die Polizei muss das neue Fahrverbot konsequent **durchsetzen**.', collocations: ['ein Verbot durchsetzen', 'Recht durchsetzen'] }
+            ]
+          },
+          {
+            prefix: 'aus', fullVerb: 'aussetzen', separable: true, stress: 'AUS-setzen', stars: 4, cefr: 'B1',
+            hint: 'Nach außen stellen oder eine Runde pausieren',
+            meanings: [
+              { id: 'aus_1', label: 'Pause machen', icon: '⏸️🎲', stars: 4, cefr: 'B1', def: 'Bei einem Spiel, Training oder einer Zahlung vorübergehend pausieren.', ex: 'Wegen meiner Verletzung muss ich beim Training eine Woche **aussetzen**.', collocations: ['eine Runde aussetzen', 'mit dem Sport aussetzen'] },
+              { id: 'aus_2', label: 'Gefahr / Kälte aussetzen', icon: '☀️⚠️', stars: 3, cefr: 'B2', def: 'Jemanden/etwas ungeschützt einem Einfluss überlassen.', ex: '**Setzen** Sie das Gerät nicht direkter Hitze **aus**.', collocations: ['sich einer Gefahr aussetzen', 'Kritik ausgesetzt sein'] },
+              { id: 'aus_3', label: 'Tier zurücklassen', icon: '🐕🌲', stars: 3, cefr: 'B1', def: 'Ein Haustier an einem Ort hilflos zurücklassen.', ex: 'Im Sommer werden leider oft Hunde an Raststätten **ausgesetzt**.', collocations: ['ein Tier aussetzen'] }
+            ]
+          },
+          {
+            prefix: 'fort', fullVerb: 'fortsetzen', separable: true, stress: 'FORT-setzen', stars: 4, cefr: 'B1',
+            hint: 'Nach einer Pause weiterführen',
+            meanings: [
+              { id: 'fo_1', label: 'Weiterführen', icon: '▶️📖', stars: 4, cefr: 'B1', def: 'Eine unterbrochene Tätigkeit, ein Gespräch oder Studium weitermachen.', ex: 'Nach der Kaffeepause **setzen** wir unsere Konferenz **fort**.', collocations: ['das Gespräch fortsetzen', 'die Reise fortsetzen'] }
+            ]
+          },
+          {
+            prefix: 'über', fullVerb: 'übersetzen', separable: false, stress: 'über-SETZEN', stars: 5, cefr: 'A2',
+            hint: 'Untrennbar: Von einer Sprache in eine andere übertragen',
+            meanings: [
+              { id: 'ueb_1', label: 'Sprache übertragen', icon: '🌍🗣️', stars: 5, cefr: 'A2', def: 'Einen Text oder Gesprochenes in eine andere Sprache übertragen.', ex: 'KI kann heute ganze Bücher in Sekunden **übersetzen**.', collocations: ['ins Deutsche übersetzen', 'simultan übersetzen'] }
+            ]
+          },
+          {
+            prefix: 'bei', fullVerb: 'beisetzen', separable: true, stress: 'BEI-setzen', stars: 1, cefr: 'C1',
+            hint: 'Gehoben: Feierlich bestatten (selten im Alltag)',
+            meanings: [
+              { id: 'bei_1', label: 'Bestatten / Beerdigen', icon: '🕊️⚰️', stars: 1, cefr: 'C1', def: 'Einen Verstorbenen oder eine Urne feierlich im Grab bestatten.', ex: 'Die Urne wurde im engsten Familienkreis **beigesetzt**.', collocations: ['eine Urne beisetzen'] }
+            ]
+          }
+        ]
+      },
+
+      kommen: {
+        infinitive: 'kommen',
+        category: 'cat_move',
+        cefr: 'A1',
+        stars: 5,
+        icon: '🚶‍♂️',
+        stemForms: 'kommt • kam • ist gekommen',
+        coreConcept: 'Sich auf einen Ort oder den Sprecher zubewegen.',
+        derivatives: [
+          {
+            prefix: 'an', fullVerb: 'ankommen', separable: true, stress: 'AN-kommen', stars: 5, cefr: 'A1',
+            hint: 'Das Ziel erreichen oder Wirkung erzielen',
+            meanings: [
+              { id: 'ank_1', label: 'Am Ziel eintreffen', icon: '🚆📍', stars: 5, cefr: 'A1', def: 'Einen Zielort nach einer Fahrt oder Reise erreichen.', ex: 'Unser ICE **kommt** heute pünktlich um 14 Uhr in Berlin **an**.', collocations: ['am Bahnhof ankommen', 'gut zu Hause ankommen'] },
+              { id: 'ank_2', label: 'Abhängen von (auf + Akk)', icon: '⚖️🎯', stars: 5, cefr: 'B1', def: 'Von einer Sache entscheidend abhängen („Es kommt darauf an“).', ex: 'Ob wir grillen, **kommt** ganz auf das Wetter **an**.', collocations: ['es kommt darauf an', 'auf jede Sekunde ankommen'] },
+              { id: 'ank_3', label: 'Beliebt sein / Resonanz', icon: '👏✨', stars: 4, cefr: 'B1', def: 'Bei anderen Menschen positiv oder negativ aufgenommen werden.', ex: 'Deine neue App-Idee **kommt** bei den Testern super **an**!', collocations: ['gut beim Publikum ankommen'] }
+            ]
+          },
+          {
+            prefix: 'mit', fullVerb: 'mitkommen', separable: true, stress: 'MIT-kommen', stars: 5, cefr: 'A1',
+            hint: 'Begleitung oder geistiges Folgen',
+            meanings: [
+              { id: 'mitk_1', label: 'Begleiten', icon: '👫🚶', stars: 5, cefr: 'A1', def: 'Gemeinsam mit anderen an einen Ort gehen.', ex: 'Wir gehen ins Kino – **kommst** du **mit**?', collocations: ['ins Restaurant mitkommen'] },
+              { id: 'mitk_2', label: 'Verstehen / Folgen können', icon: '🧠💨', stars: 4, cefr: 'B1', def: 'Einer schnellen Erklärung oder dem Unterricht gedanklich folgen können.', ex: 'Der Professor spricht so schnell, dass ich kaum **mitkomme**.', collocations: ['im Unterricht nicht mitkommen'] }
+            ]
+          },
+          {
+            prefix: 'aus', fullVerb: 'auskommen', separable: true, stress: 'AUS-kommen', stars: 4, cefr: 'B1',
+            hint: 'Mit Ressourcen reichen oder mit Menschen harmonieren',
+            meanings: [
+              { id: 'ausk_1', label: 'Sich gut verstehen (mit)', icon: '🤝😊', stars: 5, cefr: 'B1', def: 'Mit einer Person harmonisch zusammenleben oder arbeiten.', ex: 'Ich **komme** mit meinen neuen Mitbewohnern hervorragend **aus**.', collocations: ['gut miteinander auskommen'] },
+              { id: 'ausk_2', label: 'Mit Geld/Zeit reichen', icon: '💶⏳', stars: 4, cefr: 'B1', def: 'Mit einer begrenzten Menge (Geld, Vorrat) genug haben.', ex: 'Als Student musste ich mit sehr wenig Geld **auskommen**.', collocations: ['mit dem Gehalt auskommen', 'ohne Auto auskommen'] }
+            ]
+          },
+          {
+            prefix: 'bekommen', fullVerb: 'bekommen', separable: false, stress: 'be-KOMMEN', stars: 5, cefr: 'A1',
+            hint: 'Untrennbar: Empfangen / erhalten (Achtung: NICHT engl. become!)',
+            meanings: [
+              { id: 'bek_1', label: 'Erhalten / Kriegen', icon: '🎁📬', stars: 5, cefr: 'A1', def: 'Etwas geschickt, geschenkt oder überreicht kriegen.', ex: 'Hast du meine E-Mail von gestern **bekommen**?', collocations: ['ein Geschenk bekommen', 'Besuch bekommen', 'Hunger bekommen'] }
+            ]
+          },
+          {
+            prefix: 'vor', fullVerb: 'vorkommen', separable: true, stress: 'VOR-kommen', stars: 4, cefr: 'B1',
+            hint: 'Ans Licht treten / passieren oder subjektiv wirken',
+            meanings: [
+              { id: 'vork_1', label: 'Passieren / Existieren', icon: '🌍⚡', stars: 4, cefr: 'B1', def: 'Sich ereignen oder an einem Ort auftreten.', ex: 'Solche Tippfehler **kommen** in jedem System mal **vor**.', collocations: ['das kommt selten vor', 'in der Natur vorkommen'] },
+              { id: 'vork_2', label: 'Den Eindruck haben (Dativ)', icon: '🤔💭', stars: 4, cefr: 'B1', def: 'Jemandem auf eine bestimmte Art erscheinen.', ex: 'Diese Straße **kommt** mir irgendwie total bekannt **vor**.', collocations: ['bekannt vorkommen', 'komisch vorkommen'] }
+            ]
+          },
+          {
+            prefix: 'ent', fullVerb: 'entkommen', separable: false, stress: 'ent-KOMMEN', stars: 3, cefr: 'B2',
+            hint: 'Untrennbar: Einer Gefahr oder Haft entfliehen',
+            meanings: [
+              { id: 'entk_1', label: 'Fliehen / Entwischen', icon: '🏃💨', stars: 3, cefr: 'B2', def: 'Aus einer gefährlichen Lage oder vor Verfolgern fliehen.', ex: 'Die Katze konnte dem Hund im letzten Moment **entkommen**.', collocations: ['knapp entkommen', 'dem Alltag entkommen'] }
+            ]
+          }
+        ]
+      },
+
+      gehen: {
+        infinitive: 'gehen',
+        category: 'cat_move',
+        cefr: 'A1',
+        stars: 5,
+        icon: '👟',
+        stemForms: 'geht • ging • ist gegangen',
+        coreConcept: 'Sich zu Fuß fortbewegen oder funktionieren.',
+        derivatives: [
+          {
+            prefix: 'aus', fullVerb: 'ausgehen', separable: true, stress: 'AUS-gehen', stars: 5, cefr: 'A2',
+            hint: 'Nach draußen gehen, erlöschen oder etwas annehmen',
+            meanings: [
+              { id: 'ausg_1', label: 'Abends feiern / essen', icon: '🍸🎶', stars: 5, cefr: 'A2', def: 'Abends in ein Restaurant, eine Bar oder einen Club gehen.', ex: 'Wollen wir am Freitagabend zusammen **ausgehen**?', collocations: ['abends ausgehen', 'tanzen ausgehen'] },
+              { id: 'ausg_2', label: 'Annehmen (ausgehen von)', icon: '🧠📌', stars: 5, cefr: 'B1', def: 'Etwas als sicher oder wahrscheinlich voraussetzen.', ex: 'Ich **gehe** davon **aus**, dass das Meeting wie geplant stattfindet.', collocations: ['davon ausgehen, dass...'] },
+              { id: 'ausg_3', label: 'Licht / Feuer / Akku geht aus', icon: '🕯️🪫', stars: 4, cefr: 'A2', def: 'Aufhören zu brennen, zu leuchten oder leer werden.', ex: 'Mitten im Telefonat ist mein Handy einfach **ausgegangen**.', collocations: ['das Licht geht aus', 'das Geld geht aus'] }
+            ]
+          },
+          {
+            prefix: 'um', fullVerb: 'umgehen', separable: true, stress: 'UM-gehen / um-GEHEN', stars: 5, cefr: 'B1',
+            hint: 'Trennbar: behandeln/handhaben • Untrennbar: vermeiden',
+            meanings: [
+              { id: 'umg_1', label: 'Behandeln / Handhaben (mit)', icon: '🤲⚙️', stars: 5, cefr: 'B1', def: 'Mit Menschen, Stress oder Technik auf eine bestimmte Weise agieren (trennbar!).', ex: 'Er kann sehr gut mit schwierigen Kunden **umgehen**.', collocations: ['mit Stress umgehen', 'mit Geld umgehen'] },
+              { id: 'umg_2', label: 'Regel / Stau vermeiden', icon: '🚧↩️', stars: 4, cefr: 'B2', def: 'Ein Hindernis oder eine Vorschrift geschickt vermeiden (untrennbar!).', ex: 'Wir haben den Stau auf der A3 über die Landstraße **umgangen**.', collocations: ['ein Problem umgehen', 'ein Verbot umgehen'] }
+            ]
+          },
+          {
+            prefix: 'an', fullVerb: 'angehen', separable: true, stress: 'AN-gehen', stars: 4, cefr: 'B1',
+            hint: 'Starten, jemanden betreffen oder ein Problem anpacken',
+            meanings: [
+              { id: 'ang_1', label: 'Aufgabe aktiv anpacken', icon: '🚀🛠️', stars: 4, cefr: 'B2', def: 'Ein Problem oder Projekt entschlossen in Angriff nehmen.', ex: 'Lass uns das Datenmodell heute strukturiert **angehen**.', collocations: ['ein Projekt angehen', 'ein Problem angehen'] },
+              { id: 'ang_2', label: 'Betreffen (Das geht dich nichts an)', icon: '🛑🙊', stars: 5, cefr: 'B1', def: 'Für jemanden relevant sein oder seine Privatsphäre betreffen.', ex: 'Mein Gehalt **geht** dich überhaupt nichts **an**!', collocations: ['das geht dich nichts an'] }
+            ]
+          },
+          {
+            prefix: 'ver', fullVerb: 'vergehen', separable: false, stress: 'ver-GEHEN', stars: 4, cefr: 'B1',
+            hint: 'Untrennbar: Zeit verstreicht oder Schmerz verschwindet',
+            meanings: [
+              { id: 'verg_1', label: 'Zeit fliegt vorbei', icon: '⏳🕊️', stars: 5, cefr: 'B1', def: 'Zeit läuft ab und liegt hinter einem.', ex: 'Im Urlaub **vergeht** die Zeit immer viel zu schnell.', collocations: ['die Zeit vergeht', 'die Lust vergeht mir'] }
+            ]
+          },
+          {
+            prefix: 'ein', fullVerb: 'eingehen', separable: true, stress: 'EIN-gehen', stars: 4, cefr: 'B2',
+            hint: 'Auf Details reagieren, Post empfangen oder Pflanze stirbt',
+            meanings: [
+              { id: 'eing_1', label: 'Auf etwas reagieren (auf + Akk)', icon: '💬🔍', stars: 5, cefr: 'B2', def: 'Ein Thema, eine Frage oder einen Wunsch näher behandeln.', ex: 'Der Redner ist ausführlich auf meine Frage **eingegangen**.', collocations: ['auf Wünsche eingehen', 'ein Risiko eingehen'] },
+              { id: 'eing_2', label: 'Pflanze stirbt / Kleidung schrumpft', icon: '🪴🥀', stars: 3, cefr: 'B1', def: 'Pflanzen vertrocknen oder ein Pullover wird beim Waschen zu klein.', ex: 'Ohne Wasser **gehen** meine Balkonpflanzen sofort **ein**.', collocations: ['beim Waschen eingehen'] }
+            ]
+          }
+        ]
+      },
+
+      nehmen: {
+        infinitive: 'nehmen',
+        category: 'cat_give',
+        cefr: 'A1',
+        stars: 5,
+        icon: '✋',
+        stemForms: 'nimmt • nahm • hat genommen',
+        coreConcept: 'Etwas mit der Hand ergreifen oder für sich wählen.',
+        derivatives: [
+          {
+            prefix: 'auf', fullVerb: 'aufnehmen', separable: true, stress: 'AUF-nehmen', stars: 5, cefr: 'B1',
+            hint: 'Empfangen, aufzeichnen (Audio/Video) oder Kredit starten',
+            meanings: [
+              { id: 'aufn_1', label: 'Video / Audio aufzeichnen', icon: '🎙️📹', stars: 5, cefr: 'A2', def: 'Ton, Musik oder Bilder technisch speichern.', ex: 'Wir **nehmen** heute eine neue Podcast-Folge **auf**.', collocations: ['ein Video aufnehmen', 'Sprachnachricht aufnehmen'] },
+              { id: 'aufn_2', label: 'Gäste / Mitglied empfangen', icon: '🏠🤗', stars: 4, cefr: 'B1', def: 'Jemanden bei sich willkommen heißen oder in eine Gruppe lassen.', ex: 'Die Gastfamilie hat mich in München herzlich **aufgenommen**.', collocations: ['in den Verein aufnehmen', 'Kredit aufnehmen'] }
+            ]
+          },
+          {
+            prefix: 'ab', fullVerb: 'abnehmen', separable: true, stress: 'AB-nehmen', stars: 5, cefr: 'A2',
+            hint: 'Gewicht verlieren, Telefon abheben oder Last erleichtern',
+            meanings: [
+              { id: 'abn_1', label: 'Gewicht verlieren', icon: '⚖️🥗', stars: 5, cefr: 'A2', def: 'Durch Ernährung oder Sport leichter werden.', ex: 'Er hat in drei Monaten fünf Kilo **abgenommen**.', collocations: ['5 Kilo abnehmen', 'der Mond nimmt ab'] },
+              { id: 'abn_2', label: 'Arbeit / Sorge erleichtern', icon: '🎒🤝', stars: 4, cefr: 'B1', def: 'Jemandem eine Aufgabe oder ein schweres Gepäckstück abnehmen.', ex: 'Kann ich dir diese schwere Tasche **abnehmen**?', collocations: ['jemandem Arbeit abnehmen', 'eine Entscheidung abnehmen'] }
+            ]
+          },
+          {
+            prefix: 'teil', fullVerb: 'teilnehmen', separable: true, stress: 'TEIL-nehmen', stars: 5, cefr: 'A2',
+            hint: 'Aktiv bei einer Veranstaltung mitmachen (an + Dativ)',
+            meanings: [
+              { id: 'teiln_1', label: 'Mitmachen (an + Dativ)', icon: '🙋‍♂️🎓', stars: 5, cefr: 'A2', def: 'Bei einem Kurs, Wettbewerb oder Meeting dabei sein.', ex: 'Über 200 Personen **nehmen** heute am Online-Seminar **teil**.', collocations: ['an einem Kurs teilnehmen', 'an der Sitzung teilnehmen'] }
+            ]
+          },
+          {
+            prefix: 'über', fullVerb: 'übernehmen', separable: false, stress: 'über-NEHMEN', stars: 5, cefr: 'B1',
+            hint: 'Untrennbar: Verantwortung, Kosten oder Firma weiterführen',
+            meanings: [
+              { id: 'uebn_1', label: 'Verantwortung / Aufgabe leiten', icon: '👑📋', stars: 5, cefr: 'B1', def: 'Eine Aufgabe, Schicht oder Rolle verantwortlich antreten.', ex: 'Ab nächster Woche **übernimmt** sie die Projektleitung.', collocations: ['Verantwortung übernehmen', 'die Kosten übernehmen'] }
+            ]
+          },
+          {
+            prefix: 'zu', fullVerb: 'zunehmen', separable: true, stress: 'ZU-nehmen', stars: 4, cefr: 'B1',
+            hint: 'Stärker/mehr werden oder Körpergewicht erhöhen',
+            meanings: [
+              { id: 'zun_1', label: 'Steigen / Stärker werden', icon: '📈🌪️', stars: 4, cefr: 'B1', def: 'An Intensität, Menge oder Gewicht wachsen.', ex: 'Der Verkehr in der Innenstadt **nimmt** jedes Jahr **zu**.', collocations: ['der Wind nimmt zu', 'an Gewicht zunehmen'] }
+            ]
+          }
+        ]
+      },
+
+      stellen: {
+        infinitive: 'stellen',
+        category: 'cat_pos',
+        cefr: 'A1',
+        stars: 5,
+        icon: '🏺',
+        stemForms: 'stellt • stellte • hat gestellt',
+        coreConcept: 'Etwas aufrecht an einen Platz platzieren (Kausativ zu „stehen“).',
+        derivatives: [
+          {
+            prefix: 'vor', fullVerb: 'vorstellen', separable: true, stress: 'VOR-stellen', stars: 5, cefr: 'A1',
+            hint: 'Bekannt machen (Akk) oder in der Fantasie ausmalen (Dat)',
+            meanings: [
+              { id: 'vors_1', label: 'Person / Produkt präsentieren', icon: '👋🎤', stars: 5, cefr: 'A1', def: 'Sich selbst oder ein neues Produkt anderen zeigen und erklären.', ex: 'Darf ich mich kurz **vorstellen**? Ich heiße Lukas.', collocations: ['sich beim Vorstellungsgespräch vorstellen', 'ein Projekt vorstellen'] },
+              { id: 'vors_2', label: 'Fantasie / Denken (mir vorstellen)', icon: '💭🌈', stars: 5, cefr: 'A2', def: 'Sich im Kopf ein Bild von etwas machen (reflexiv im Dativ!).', ex: 'Ich kann **mir** ein Leben ohne Musik gar nicht **vorstellen**.', collocations: ['Stell dir vor!', 'sich die Zukunft vorstellen'] }
+            ]
+          },
+          {
+            prefix: 'ein', fullVerb: 'einstellen', separable: true, stress: 'EIN-stellen', stars: 5, cefr: 'B1',
+            hint: 'Personal engagieren, Gerät justieren oder Aktivität stoppen',
+            meanings: [
+              { id: 'eins_1', label: 'Mitarbeiter anstellen (Job)', icon: '💼🤝', stars: 5, cefr: 'B1', def: 'Einer Person einen Arbeitsplatz im Unternehmen geben.', ex: 'Unser Start-up **stellt** dieses Jahr fünf neue Entwickler **ein**.', collocations: ['Personal einstellen'] },
+              { id: 'eins_2', label: 'Konfigurieren / Justieren', icon: '⚙️🌡️', stars: 4, cefr: 'A2', def: 'Temperatur, Sprache oder Parameter an einem Gerät regeln.', ex: 'Du kannst die App-Sprache im Menü auf Deutsch **einstellen**.', collocations: ['den Wecker einstellen', 'die Heizung einstellen'] },
+              { id: 'eins_3', label: 'Betrieb / Zahlung beenden', icon: '🛑🏭', stars: 3, cefr: 'B2', def: 'Eine Produktion oder Untersuchung komplett abbrechen.', ex: 'Wegen des Sturms wurde der Fährverkehr **eingestellt**.', collocations: ['die Produktion einstellen'] }
+            ]
+          },
+          {
+            prefix: 'fest', fullVerb: 'feststellen', separable: true, stress: 'FEST-stellen', stars: 5, cefr: 'B1',
+            hint: 'Bemerken, erkennen oder offiziell ermitteln',
+            meanings: [
+              { id: 'fests_1', label: 'Bemerken / Erkennen', icon: '🔍💡', stars: 5, cefr: 'B1', def: 'Plötzlich merken oder durch Prüfung herausfinden.', ex: 'An der Kasse habe ich **festgestellt**, dass mein Portemonnaie fehlt.', collocations: ['einen Fehler feststellen', 'Unterschiede feststellen'] }
+            ]
+          },
+          {
+            prefix: 'her', fullVerb: 'herstellen', separable: true, stress: 'HER-stellen', stars: 4, cefr: 'B1',
+            hint: 'Produzieren oder einen Kontakt/Zustand aufbauen',
+            meanings: [
+              { id: 'hers_1', label: 'Produzieren / Fertigen', icon: '🏭🍫', stars: 4, cefr: 'B1', def: 'Waren oder Produkte industriell oder handwerklich erzeugen.', ex: 'In dieser Fabrik werden nachhaltige Batterien **hergestellt**.', collocations: ['Lebensmittel herstellen', 'Kontakt herstellen'] }
+            ]
+          },
+          {
+            prefix: 'be', fullVerb: 'bestellen', separable: false, stress: 'be-STELLEN', stars: 5, cefr: 'A1',
+            hint: 'Untrennbar: Ware oder Essen in Auftrag geben',
+            meanings: [
+              { id: 'bests_1', label: 'Online oder im Café ordern', icon: '🍕📦', stars: 5, cefr: 'A1', def: 'Essen im Restaurant oder Produkte im Internet anfordern.', ex: 'Wir haben uns heute Abend Pizza nach Hause **bestellt**.', collocations: ['online bestellen', 'einen Kaffee bestellen'] }
+            ]
+          }
+        ]
+      },
+
+      halten: {
+        infinitive: 'halten',
+        category: 'cat_give',
+        cefr: 'A1',
+        stars: 5,
+        icon: '🛑',
+        stemForms: 'hält • hielt • hat gehalten',
+        coreConcept: 'Nicht loslassen, stoppen oder eine Meinung haben.',
+        derivatives: [
+          {
+            prefix: 'auf', fullVerb: 'aufhalten', separable: true, stress: 'AUF-halten', stars: 4, cefr: 'B1',
+            hint: 'Bremsen/verzögern oder sich an einem Ort befinden',
+            meanings: [
+              { id: 'aufh_1', label: 'Verzögern / Stoppen', icon: '✋⏱️', stars: 4, cefr: 'B1', def: 'Jemanden bei der Arbeit stören oder eine Bewegung stoppen.', ex: 'Ich will dich nicht länger von der Arbeit **aufhalten**!', collocations: ['jemanden aufhalten', 'die Tür aufhalten'] },
+              { id: 'aufh_2', label: 'Sich befinden (reflexiv)', icon: '📍🏨', stars: 4, cefr: 'B1', def: 'Vorübergehend an einem Ort verweilen.', ex: 'Wo **hältst** du dich gerade in Berlin **auf**?', collocations: ['sich im Ausland aufhalten'] }
+            ]
+          },
+          {
+            prefix: 'ein', fullVerb: 'einhalten', separable: true, stress: 'EIN-halten', stars: 5, cefr: 'B1',
+            hint: 'Regeln, Fristen oder Versprechen befolgen',
+            meanings: [
+              { id: 'einh_1', label: 'Regel / Termin befolgen', icon: '📅✅', stars: 5, cefr: 'B1', def: 'Eine Frist, ein Versprechen oder Gesetz genau beachten.', ex: 'Wir müssen die Deadline für das MVP unbedingt **einhalten**.', collocations: ['einen Termin einhalten', 'Abstand einhalten'] }
+            ]
+          },
+          {
+            prefix: 'aus', fullVerb: 'aushalten', separable: true, stress: 'AUS-halten', stars: 4, cefr: 'B1',
+            hint: 'Schmerz, Lärm oder Druck ertragen',
+            meanings: [
+              { id: 'aush_1', label: 'Ertragen / Durchstehen', icon: '🥵💪', stars: 4, cefr: 'B1', def: 'Etwas Unangenehmes wie Hitze, Lärm oder Schmerzen überstehen.', ex: 'Dieser Baulärm vor dem Fenster ist kaum noch **auszuhalten**!', collocations: ['Schmerzen aushalten', 'den Druck aushalten'] }
+            ]
+          },
+          {
+            prefix: 'unter', fullVerb: 'unterhalten', separable: false, stress: 'unter-HALTEN', stars: 5, cefr: 'A2',
+            hint: 'Untrennbar: Nett plaudern (reflexiv) oder Publikum amüsieren',
+            meanings: [
+              { id: 'unth_1', label: 'Miteinander sprechen (sich)', icon: '☕🗣️', stars: 5, cefr: 'A2', def: 'Ein entspanntes Gespräch mit jemandem führen.', ex: 'Auf der Party habe ich mich stundenlang mit ihr **unterhalten**.', collocations: ['sich gut unterhalten'] }
+            ]
+          },
+          {
+            prefix: 'be', fullVerb: 'behalten', separable: false, stress: 'be-HALTEN', stars: 5, cefr: 'A2',
+            hint: 'Untrennbar: Nicht zurückgeben oder im Gedächtnis speichern',
+            meanings: [
+              { id: 'beh_1', label: 'Nicht hergeben / Merken', icon: '🧠🎁', stars: 5, cefr: 'A2', def: 'Etwas in seinem Besitz lassen oder sich Vokabeln merken.', ex: 'Durch visuelle Mindmaps **behält** man Verben viel leichter im Kopf.', collocations: ['das Wechselgeld behalten', 'im Gedächtnis behalten'] }
+            ]
+          }
+        ]
+      },
+
+      ziehen: {
+        infinitive: 'ziehen',
+        category: 'cat_move',
+        cefr: 'A2',
+        stars: 5,
+        icon: '🧲',
+        stemForms: 'zieht • zog • hat/ist gezogen',
+        coreConcept: 'Mit Kraft zu sich herbewegen oder den Wohnort wechseln.',
+        derivatives: [
+          {
+            prefix: 'um', fullVerb: 'umziehen', separable: true, stress: 'UM-ziehen', stars: 5, cefr: 'A2',
+            hint: 'Wohnung wechseln (ist) oder Kleidung wechseln (hat, reflexiv)',
+            meanings: [
+              { id: 'umz_1', label: 'Neue Wohnung beziehen', icon: '📦🚚', stars: 5, cefr: 'A2', def: 'In eine andere Wohnung oder Stadt ziehen (Perfekt mit „sein“).', ex: 'Wir **ziehen** nächsten Monat nach München **um**.', collocations: ['in eine neue Wohnung umziehen'] },
+              { id: 'umz_2', label: 'Kleidung wechseln (sich)', icon: '👕🔄', stars: 4, cefr: 'A2', def: 'Andere Kleidung anziehen (Perfekt mit „haben“).', ex: 'Nach dem Sport muss ich mich erst mal schnell **umziehen**.', collocations: ['sich für das Fest umziehen'] }
+            ]
+          },
+          {
+            prefix: 'an', fullVerb: 'anziehen', separable: true, stress: 'AN-ziehen', stars: 5, cefr: 'A1',
+            hint: 'Kleidung anlegen oder wie ein Magnet wirken',
+            meanings: [
+              { id: 'anz_1', label: 'Kleidung anlegen', icon: '🧥👟', stars: 5, cefr: 'A1', def: 'Kleidungsstücke an den Körper legen.', ex: '**Zieh** dir heute bitte eine warme Jacke **an**!', collocations: ['Schuhe anziehen', 'sich warm anziehen'] },
+              { id: 'anz_2', label: 'Magnetisch wirken / Attraktiv', icon: '🧲✨', stars: 3, cefr: 'B1', def: 'Besucher, Kunden oder Blicke auf sich lenken.', ex: 'Die Messe **zieht** jedes Jahr Tausende Besucher **an**.', collocations: ['Touristen anziehen'] }
+            ]
+          },
+          {
+            prefix: 'aus', fullVerb: 'ausziehen', separable: true, stress: 'AUS-ziehen', stars: 5, cefr: 'A1',
+            hint: 'Kleidung ablegen oder Wohnung verlassen',
+            meanings: [
+              { id: 'ausz_1', label: 'Kleidung ablegen', icon: '🧦⬇️', stars: 5, cefr: 'A1', def: 'Schuhe oder Kleidung vom Körper nehmen.', ex: 'Bitte **zieht** im Flur eure Straßenschuhe **aus**.', collocations: ['den Mantel ausziehen'] },
+              { id: 'ausz_2', label: 'Wohnung verlassen', icon: '🔑🚪', stars: 4, cefr: 'A2', def: 'Eine bisherige Wohnung dauerhaft verlassen.', ex: 'Unser Sohn ist mit 19 Jahren zu Hause **ausgezogen**.', collocations: ['bei den Eltern ausziehen'] }
+            ]
+          },
+          {
+            prefix: 'er', fullVerb: 'erziehen', separable: false, stress: 'er-ZIEHEN', stars: 4, cefr: 'B1',
+            hint: 'Untrennbar: Kinder beim Aufwachsen begleiten und formen',
+            meanings: [
+              { id: 'erz_1', label: 'Kinder großziehen & prägen', icon: '👨‍👩‍👧🌱', stars: 4, cefr: 'B1', def: 'Kinder fördern und ihnen Werte beibringen.', ex: 'Sie versuchen ihre Kinder zu großer Selbstständigkeit zu **erziehen**.', collocations: ['Kinder streng/liebevoll erziehen'] }
+            ]
+          },
+          {
+            prefix: 'be', fullVerb: 'beziehen', separable: false, stress: 'be-ZIEHEN', stars: 4, cefr: 'B1',
+            hint: 'Untrennbar: Bezug herstellen (auf), Bett beziehen oder Geld erhalten',
+            meanings: [
+              { id: 'bez_1', label: 'Bezug nehmen (sich auf + Akk)', icon: '🔗📄', stars: 5, cefr: 'B1', def: 'Sich inhaltlich auf eine Aussage oder ein Schreiben stützen.', ex: 'Ich **beziehe** mich auf Ihr gestriges Angebot.', collocations: ['sich auf einen Artikel beziehen'] }
+            ]
+          }
+        ]
+      },
+
+      lassen: {
+        infinitive: 'lassen',
+        category: 'cat_act',
+        cefr: 'A2',
+        stars: 5,
+        icon: '🕊️',
+        stemForms: 'lässt • ließ • hat gelassen',
+        coreConcept: 'Nicht verändern, erlauben oder jemanden etwas tun lassen.',
+        derivatives: [
+          {
+            prefix: 'ver', fullVerb: 'verlassen', separable: false, stress: 'ver-LASSEN', stars: 5, cefr: 'A2',
+            hint: 'Untrennbar: Ort weggehen oder jemandem vertrauen (sich auf)',
+            meanings: [
+              { id: 'verl_1', label: 'Vertrauen (sich auf + Akk)', icon: '🤝🛡️', stars: 5, cefr: 'B1', def: 'Sicher sein, dass jemand zuverlässig hilft.', ex: 'Auf meine beste Freundin kann ich mich zu 100 % **verlassen**.', collocations: ['sich auf jemanden verlassen'] },
+              { id: 'verl_2', label: 'Ort / Raum weggehen', icon: '🚪🚶', stars: 5, cefr: 'A2', def: 'Aus einem Gebäude, Land oder einer Beziehung weggehen.', ex: 'Bitte **verlassen** Sie das Gebäude im Notfall über die Treppe.', collocations: ['das Haus verlassen'] }
+            ]
+          },
+          {
+            prefix: 'ent', fullVerb: 'entlassen', separable: false, stress: 'ent-LASSEN', stars: 4, cefr: 'B1',
+            hint: 'Untrennbar: Kündigen (Job) oder aus Klinik nach Hause schicken',
+            meanings: [
+              { id: 'entl_1', label: 'Mitarbeiter kündigen / Klinik', icon: '🏥📄', stars: 4, cefr: 'B1', def: 'Jemandem den Job kündigen oder als Patient gesund nach Hause lassen.', ex: 'Er wurde heute Morgen gesund aus dem Krankenhaus **entlassen**.', collocations: ['aus dem Krankenhaus entlassen', 'Personal entlassen'] }
+            ]
+          },
+          {
+            prefix: 'zu', fullVerb: 'zulassen', separable: true, stress: 'ZU-lassen', stars: 4, cefr: 'B1',
+            hint: 'Erlauben, Auto anmelden oder Tür geschlossen lassen',
+            meanings: [
+              { id: 'zul_1', label: 'Erlauben / Dulden', icon: '🔓✅', stars: 4, cefr: 'B1', def: 'Etwas geschehen lassen oder offiziell genehmigen.', ex: 'Die Software **lässt** keine unsicheren Passwörter **zu**.', collocations: ['Ausnahmen zulassen', 'ein Auto zulassen'] }
+            ]
+          },
+          {
+            prefix: 'aus', fullVerb: 'auslassen', separable: true, stress: 'AUS-lassen', stars: 3, cefr: 'B1',
+            hint: 'Weglassen / überspringen oder Gefühle an jemandem abreagieren',
+            meanings: [
+              { id: 'ausl_1', label: 'Überspringen / Weglassen', icon: '⏭️📝', stars: 3, cefr: 'B1', def: 'Eine Frage oder ein Detail absichtlich nicht behandeln.', ex: 'Wenn du die Aufgabe nicht weißt, **lass** sie einfach erst mal **aus**.', collocations: ['ein Kapitel auslassen', 'seine Wut an jemandem auslassen'] }
+            ]
+          }
+        ]
+      },
+
+      schlagen: {
+        infinitive: 'schlagen',
+        category: 'cat_form',
+        cefr: 'A2',
+        stars: 4,
+        icon: '🥁',
+        stemForms: 'schlägt • schlug • hat geschlagen',
+        coreConcept: 'Mit Schwung treffen, besiegen oder pulsieren (Herz).',
+        derivatives: [
+          {
+            prefix: 'vor', fullVerb: 'vorschlagen', separable: true, stress: 'VOR-schlagen', stars: 5, cefr: 'A2',
+            hint: 'Eine Idee oder Option zur Auswahl präsentieren',
+            meanings: [
+              { id: 'vorschl_1', label: 'Idee / Empfehlung geben', icon: '💡🙋', stars: 5, cefr: 'A2', def: 'Einen Plan oder Kompromiss in einer Gruppe einbringen.', ex: 'Was **schlägst** du für unser nächstes Treffen **vor**?', collocations: ['einen Termin vorschlagen', 'eine Lösung vorschlagen'] }
+            ]
+          },
+          {
+            prefix: 'nach', fullVerb: 'nachschlagen', separable: true, stress: 'NACH-schlagen', stars: 4, cefr: 'B1',
+            hint: 'In einem Buch/Wörterbuch gezielt suchen',
+            meanings: [
+              { id: 'nachschl_1', label: 'Im Wörterbuch suchen', icon: '📖🔎', stars: 4, cefr: 'B1', def: 'Ein unbekanntes Wort oder Faktum in einem Nachschlagewerk prüfen.', ex: 'Du musst nicht jedes einzelne Verb im Duden **nachschlagen**.', collocations: ['ein Wort nachschlagen'] }
+            ]
+          },
+          {
+            prefix: 'ab', fullVerb: 'abschlagen', separable: true, stress: 'AB-schlagen', stars: 2, cefr: 'B2',
+            hint: 'Eine Bitte ablehnen oder etwas abtrennen',
+            meanings: [
+              { id: 'abschl_1', label: 'Bitte / Wunsch ablehnen', icon: '🙅‍♂️❌', stars: 2, cefr: 'B2', def: 'Einen Wunsch oder ein Angebot verweigern.', ex: 'Diesen freundlichen Wunsch konnte ich ihm einfach nicht **abschlagen**.', collocations: ['eine Bitte abschlagen'] }
+            ]
+          },
+          {
+            prefix: 'ein', fullVerb: 'einschlagen', separable: true, stress: 'EIN-schlagen', stars: 3, cefr: 'B2',
+            hint: 'Richtung wählen, Fenster zerbrechen oder Blitz trifft',
+            meanings: [
+              { id: 'einschl_1', label: 'Einen Weg / Kurs wählen', icon: '🧭🛤️', stars: 3, cefr: 'B2', def: 'Sich für eine bestimmte Richtung oder Karriere entscheiden.', ex: 'Mit deiner DaF-App **schlägst** du einen völlig neuen Weg **ein**.', collocations: ['einen neuen Weg einschlagen', 'der Blitz schlägt ein'] }
+            ]
+          }
+        ]
+      }
+    };
+
+    // Full list of 50 Base Verbs mapped to categories and intelligent prefix generators for non-flagships
+    const ALL_50_VERBS_META = [
+      // Bewegung & Ort (cat_move)
+      { inf: 'kommen', cat: 'cat_move', cefr: 'A1', stars: 5, icon: '🚶‍♂️', stem: 'kommt • kam • ist gekommen', prefixes: ['an', 'mit', 'aus', 'vor', 'zurück', 'weiter'] },
+      { inf: 'gehen', cat: 'cat_move', cefr: 'A1', stars: 5, icon: '👟', stem: 'geht • ging • ist gegangen', prefixes: ['aus', 'um', 'an', 'ein', 'ver', 'mit'] },
+      { inf: 'fahren', cat: 'cat_move', cefr: 'A1', stars: 5, icon: '🚗', stem: 'fährt • fuhr • ist gefahren', prefixes: ['ab', 'los', 'mit', 'vorbei', 'er', 'über'] },
+      { inf: 'laufen', cat: 'cat_move', cefr: 'A1', stars: 5, icon: '🏃', stem: 'läuft • lief • ist gelaufen', prefixes: ['ab', 'aus', 'weg', 'ver', 'mit', 'durch'] },
+      { inf: 'fallen', cat: 'cat_move', cefr: 'A2', stars: 5, icon: '🍂', stem: 'fällt • fiel • ist gefallen', prefixes: ['auf', 'aus', 'ein', 'ge', 'weg', 'rein'] },
+      { inf: 'ziehen', cat: 'cat_move', cefr: 'A2', stars: 5, icon: '🧲', stem: 'zieht • zog • hat/ist gezogen', prefixes: ['um', 'an', 'aus', 'er', 'be', 'vor'] },
+      { inf: 'führen', cat: 'cat_move', cefr: 'B1', stars: 4, icon: '🧭', stem: 'führt • führte • hat geführt', prefixes: ['ein', 'aus', 'durch', 'vor', 'ver', 'weiter'] },
+      { inf: 'fliegen', cat: 'cat_move', cefr: 'A1', stars: 4, icon: '✈️', stem: 'fliegt • flog • ist geflogen', prefixes: ['ab', 'weg', 'raus', 'über', 'an'] },
+      { inf: 'steigen', cat: 'cat_move', cefr: 'A2', stars: 5, icon: '🪜', stem: 'steigt • stieg • ist gestiegen', prefixes: ['ein', 'aus', 'um', 'auf', 'ab', 'an'] },
+
+      // Position & Stellen (cat_pos)
+      { inf: 'setzen', cat: 'cat_pos', cefr: 'A1', stars: 5, icon: '🪑', stem: 'setzt • setzte • hat gesetzt', prefixes: ['ab', 'ein', 'um', 'durch', 'aus', 'fort', 'über', 'bei'] },
+      { inf: 'stellen', cat: 'cat_pos', cefr: 'A1', stars: 5, icon: '🏺', stem: 'stellt • stellte • hat gestellt', prefixes: ['vor', 'ein', 'fest', 'her', 'be', 'aus', 'ab'] },
+      { inf: 'legen', cat: 'cat_pos', cefr: 'A1', stars: 5, icon: '🛏️', stem: 'legt • legte • hat gelegt', prefixes: ['ab', 'an', 'auf', 'fest', 'über', 'zusammen'] },
+      { inf: 'stehen', cat: 'cat_pos', cefr: 'A1', stars: 5, icon: '🧍', stem: 'steht • stand • hat gestanden', prefixes: ['auf', 'ver', 'be', 'ent', 'an', 'fest'] },
+      { inf: 'sitzen', cat: 'cat_pos', cefr: 'A1', stars: 5, icon: '🧘', stem: 'sitzt • saß • hat gesessen', prefixes: ['be', 'absitzen', 'fest', 'zusammen'] },
+      { inf: 'liegen', cat: 'cat_pos', cefr: 'A1', stars: 5, icon: '🛋️', stem: 'liegt • lag • hat gelegen', prefixes: ['vor', 'an', 'aus', 'daneben', 'unter'] },
+      { inf: 'hängen', cat: 'cat_pos', cefr: 'A2', stars: 4, icon: '🖼️', stem: 'hängt • hing • hat gehangen', prefixes: ['ab', 'auf', 'zusammen', 'an', 'aus'] },
+      { inf: 'stecken', cat: 'cat_pos', cefr: 'A2', stars: 4, icon: '🔌', stem: 'steckt • steckte • hat gesteckt', prefixes: ['an', 'ein', 'aus', 'fest', 'ver'] },
+
+      // Geben & Nehmen (cat_give)
+      { inf: 'nehmen', cat: 'cat_give', cefr: 'A1', stars: 5, icon: '✋', stem: 'nimmt • nahm • hat genommen', prefixes: ['auf', 'ab', 'teil', 'über', 'zu', 'mit', 'an'] },
+      { inf: 'geben', cat: 'cat_give', cefr: 'A1', stars: 5, icon: '🎁', stem: 'gibt • gab • hat gegeben', prefixes: ['ab', 'an', 'auf', 'aus', 'bekannt', 'zu', 'ver'] },
+      { inf: 'bringen', cat: 'cat_give', cefr: 'A1', stars: 5, icon: '📦', stem: 'bringt • brachte • hat gebracht', prefixes: ['mit', 'um', 'unter', 'bei', 'ver', 'an'] },
+      { inf: 'holen', cat: 'cat_give', cefr: 'A1', stars: 5, icon: '🐕', stem: 'holt • holte • hat geholt', prefixes: ['ab', 'ein', 'nach', 'wieder', 'er'] },
+      { inf: 'halten', cat: 'cat_give', cefr: 'A1', stars: 5, icon: '🛑', stem: 'hält • hielt • hat gehalten', prefixes: ['auf', 'ein', 'aus', 'unter', 'be', 'an', 'fest'] },
+      { inf: 'tragen', cat: 'cat_give', cefr: 'A2', stars: 5, icon: '🎒', stem: 'trägt • trug • hat getragen', prefixes: ['bei', 'ein', 'aus', 'über', 'er', 'vor'] },
+      { inf: 'kaufen', cat: 'cat_give', cefr: 'A1', stars: 5, icon: '🛒', stem: 'kauft • kaufte • hat gekauft', prefixes: ['ein', 'ver', 'ab', 'nach', 'los'] },
+      { inf: 'zahlen', cat: 'cat_give', cefr: 'A1', stars: 5, icon: '💳', stem: 'zahlt • zahlte • hat gezahlt', prefixes: ['be', 'ein', 'aus', 'ab', 'zurück'] },
+      { inf: 'teilen', cat: 'cat_give', cefr: 'A2', stars: 4, icon: '🍰', stem: 'teilt • teilte • hat geteilt', prefixes: ['mit', 'ein', 'auf', 'ver', 'be'] },
+
+      // Machen & Alltag (cat_act)
+      { inf: 'machen', cat: 'cat_act', cefr: 'A1', stars: 5, icon: '🛠️', stem: 'macht • machte • hat gemacht', prefixes: ['auf', 'zu', 'an', 'aus', 'mit', 'vor', 'nach'] },
+      { inf: 'tun', cat: 'cat_act', cefr: 'A1', stars: 5, icon: '⚡', stem: 'tut • tat • hat getan', prefixes: ['an', 'ab', 'weh', 'gut', 'leid'] },
+      { inf: 'lassen', cat: 'cat_act', cefr: 'A2', stars: 5, icon: '🕊️', stem: 'lässt • ließ • hat gelassen', prefixes: ['ver', 'ent', 'zu', 'aus', 'nach', 'über'] },
+      { inf: 'arbeiten', cat: 'cat_act', cefr: 'A1', stars: 5, icon: '💻', stem: 'arbeitet • arbeitete • hat gearbeitet', prefixes: ['be', 'aus', 'ein', 'mit', 'über', 'zusammen'] },
+      { inf: 'spielen', cat: 'cat_act', cefr: 'A1', stars: 4, icon: '🎲', stem: 'spielt • spielte • hat gespielt', prefixes: ['ab', 'mit', 'vor', 'ein', 'aus'] },
+      { inf: 'lernen', cat: 'cat_act', cefr: 'A1', stars: 5, icon: '🎓', stem: 'lernt • lernte • hat gelernt', prefixes: ['kennen', 'auswendig', 'ver', 'um', 'an'] },
+      { inf: 'schließen', cat: 'cat_act', cefr: 'A2', stars: 5, icon: '🔒', stem: 'schließt • schloss • hat geschlossen', prefixes: ['ab', 'auf', 'an', 'aus', 'be', 'ein'] },
+      { inf: 'öffnen', cat: 'cat_act', cefr: 'A1', stars: 4, icon: '🔓', stem: 'öffnet • öffnete • hat geöffnet', prefixes: ['er', 'wieder'] },
+      { inf: 'rechnen', cat: 'cat_act', cefr: 'B1', stars: 4, icon: '🧮', stem: 'rechnet • rechnete • hat gerechnet', prefixes: ['ab', 'aus', 'be', 'mit', 'um'] },
+
+      // Sprechen & Sinn (cat_comm)
+      { inf: 'sprechen', cat: 'cat_comm', cefr: 'A1', stars: 5, icon: '🗣️', stem: 'spricht • sprach • hat gesprochen', prefixes: ['an', 'ab', 'aus', 'be', 'ver', 'wider'] },
+      { inf: 'sagen', cat: 'cat_comm', cefr: 'A1', stars: 5, icon: '💬', stem: 'sagt • sagte • hat gesagt', prefixes: ['ab', 'zu', 'an', 'vorher', 'durch'] },
+      { inf: 'sehen', cat: 'cat_comm', cefr: 'A1', stars: 5, icon: '👀', stem: 'sieht • sah • hat gesehen', prefixes: ['an', 'aus', 'ein', 'fern', 'vor', 'über'] },
+      { inf: 'schauen', cat: 'cat_comm', cefr: 'A1', stars: 4, icon: '🔭', stem: 'schaut • schaute • hat geschaut', prefixes: ['an', 'zu', 'rein', 'vorbei', 'durch'] },
+      { inf: 'hören', cat: 'cat_comm', cefr: 'A1', stars: 5, icon: '👂', stem: 'hört • hörte • hat gehört', prefixes: ['auf', 'zu', 'an', 'ab', 'mit', 'ge'] },
+      { inf: 'schreiben', cat: 'cat_comm', cefr: 'A1', stars: 5, icon: '✍️', stem: 'schreibt • schrieb • hat geschrieben', prefixes: ['auf', 'ab', 'be', 'unter', 'ein', 'vor'] },
+      { inf: 'lesen', cat: 'cat_comm', cefr: 'A1', stars: 5, icon: '📖', stem: 'liest • las • hat gelesen', prefixes: ['vor', 'durch', 'aus', 'ab', 'ein'] },
+
+      // Form & Kraft (cat_form)
+      { inf: 'schlagen', cat: 'cat_form', cefr: 'A2', stars: 4, icon: '🥁', stem: 'schlägt • schlug • hat geschlagen', prefixes: ['vor', 'nach', 'ab', 'ein', 'auf', 'zusammen'] },
+      { inf: 'fangen', cat: 'cat_form', cefr: 'A2', stars: 5, icon: '🥅', stem: 'fängt • fing • hat gefangen', prefixes: ['an', 'ein', 'auf', 'ab', 'um'] },
+      { inf: 'schneiden', cat: 'cat_form', cefr: 'A2', stars: 4, icon: '✂️', stem: 'schneidet • schnitt • hat geschnitten', prefixes: ['ab', 'auf', 'aus', 'durch', 'mit'] },
+      { inf: 'brechen', cat: 'cat_form', cefr: 'B1', stars: 4, icon: '⚡', stem: 'bricht • brach • hat/ist gebrochen', prefixes: ['ab', 'auf', 'aus', 'ein', 'unter', 'ver'] },
+      { inf: 'binden', cat: 'cat_form', cefr: 'B1', stars: 4, icon: '🪢', stem: 'bindet • band • hat gebunden', prefixes: ['ver', 'ein', 'an', 'ent', 'fest'] },
+      { inf: 'drücken', cat: 'cat_form', cefr: 'A2', stars: 4, icon: '👆', stem: 'drückt • drückte • hat gedrückt', prefixes: ['aus', 'unter', 'ab', 'be', 'durch'] },
+      { inf: 'werfen', cat: 'cat_form', cefr: 'A2', stars: 4, icon: '🏀', stem: 'wirft • warf • hat geworfen', prefixes: ['weg', 'vor', 'ein', 'ent', 'ab'] },
+      { inf: 'drehen', cat: 'cat_form', cefr: 'A2', stars: 4, icon: '🔄', stem: 'dreht • drehte • hat gedreht', prefixes: ['um', 'auf', 'zu', 'ab', 'durch'] }
+    ];
+
+    // Semantic prefix templates to build realistic branches for all 50 verbs dynamically if not in FLAGSHIP_VERBS
+    const PREFIX_SEMANTICS = {
+      ab: { sep: true, stars: 4, cefr: 'B1', hint: 'Trennung, Startpunkt oder Reduktion', icon: '⬇️✂️', context: 'Trennen / Abschließen' },
+      an: { sep: true, stars: 5, cefr: 'A2', hint: 'Start einer Handlung oder Kontakt/Richtung auf etwas', icon: '🎯▶️', context: 'Beginnen / Adressieren' },
+      auf: { sep: true, stars: 5, cefr: 'A2', hint: 'Öffnen, nach oben bewegen oder plötzlich starten', icon: '⬆️🔓', context: 'Öffnen / Aufnehmen' },
+      aus: { sep: true, stars: 5, cefr: 'A2', hint: 'Nach außen, vollständig zu Ende oder erlöschen', icon: '📤✨', context: 'Nach außen / Beenden' },
+      ein: { sep: true, stars: 5, cefr: 'A2', hint: 'Nach innen, Integration oder Beginn', icon: '📥🧩', context: 'Hinein / Integrieren' },
+      um: { sep: true, stars: 4, cefr: 'B1', hint: 'Veränderung, Wechsel oder Richtungsänderung', icon: '🔄⚡', context: 'Wechsel / Veränderung' },
+      vor: { sep: true, stars: 4, cefr: 'B1', hint: 'Nach vorne, Präsentation oder zeitlich vorher', icon: '🎤⏭️', context: 'Präsentieren / Voraus' },
+      mit: { sep: true, stars: 5, cefr: 'A1', hint: 'Gemeinsamkeit, Kooperation oder Begleitung', icon: '🤝👫', context: 'Gemeinsam / Begleiten' },
+      nach: { sep: true, stars: 4, cefr: 'B1', hint: 'Prüfung, Wiederholung oder zeitlich später', icon: '🔎📖', context: 'Überprüfen / Folgen' },
+      zu: { sep: true, stars: 4, cefr: 'A2', hint: 'Schließen, Richtung auf ein Ziel oder Erhöhung', icon: '🔒➕', context: 'Schließen / Hinzufügen' },
+      durch: { sep: true, stars: 4, cefr: 'B1', hint: 'Von Anfang bis Ende komplett durchdringen', icon: '🚀🏁', context: 'Vollständig / Konsequent' },
+      unter: { sep: false, stars: 4, cefr: 'B1', hint: 'Darunter, Austausch oder Unterdrückung', icon: '💬🛡️', context: 'Austausch / Struktur' },
+      über: { sep: false, stars: 4, cefr: 'B1', hint: 'Transfer, Kontrolle oder zu viel', icon: '🌉👑', context: 'Transfer / Übernahme' },
+      be: { sep: false, stars: 5, cefr: 'B1', hint: 'Untrennbar: Macht das Verb direkt zielgerichtet (Akkusativ)', icon: '🎯📝', context: 'Direktes Objekt (Akk.)' },
+      ver: { sep: false, stars: 5, cefr: 'B1', hint: 'Untrennbar: Veränderung, Abschluss oder Fehler („falsch“)', icon: '✨🌀', context: 'Zustandswechsel / Irrtum' },
+      er: { sep: false, stars: 4, cefr: 'B2', hint: 'Untrennbar: Erreichen eines Ziels oder Resultats', icon: '🏆🌱', context: 'Resultat erreichen' },
+      ent: { sep: false, stars: 3, cefr: 'B2', hint: 'Untrennbar: Entfernen, Entstehen oder Entlasten', icon: '🕊️🚪', context: 'Ablösen / Entstehen' },
+      ge: { sep: false, stars: 4, cefr: 'A2', hint: 'Untrennbar: Zugehörigkeit oder Gelingen', icon: '✅🔗', context: 'Zugehörigkeit / Erfolg' }
+    };
+
+    function getVerbData(infinitive) {
+      if (FLAGSHIP_VERBS[infinitive]) return FLAGSHIP_VERBS[infinitive];
+
+      const meta = ALL_50_VERBS_META.find(v => v.inf === infinitive) || ALL_50_VERBS_META[0];
+      const derivatives = (meta.prefixes || ['an', 'auf', 'aus', 'ein', 'ver']).map((pref, idx) => {
+        const sem = PREFIX_SEMANTICS[pref] || { sep: true, stars: 4, cefr: 'B1', hint: 'Bedeutungsvariante im Alltag', icon: '🔹', context: 'Alltagsgebrauch' };
+        const fullVerb = pref.endsWith(meta.inf) ? pref : `${pref}${meta.inf}`;
+        const stress = sem.sep ? `${pref.toUpperCase()}-${meta.inf}` : `${pref}-${meta.inf.toUpperCase()}`;
+        return {
+          prefix: pref,
+          fullVerb: fullVerb,
+          separable: sem.sep,
+          stress: stress,
+          stars: Math.max(2, Math.min(5, sem.stars - (idx > 4 ? 1 : 0))),
+          cefr: sem.cefr,
+          hint: sem.hint,
+          meanings: [
+            {
+              id: `${fullVerb}_m1`,
+              label: `${sem.context} (${fullVerb})`,
+              icon: sem.icon,
+              stars: sem.stars,
+              cefr: sem.cefr,
+              def: `Häufige Verwendung von „${fullVerb}“ im Sinne von: ${sem.hint.toLowerCase()}.`,
+              ex: sem.sep
+                ? `Im Alltag **${meta.inf.slice(0, -2)}t** man das oft direkt **${pref}**.`
+                : `Im Alltag müssen wir diese Aufgabe gemeinsam **${fullVerb}**.`,
+              collocations: [`etwas ${fullVerb}`, `im Alltag ${fullVerb}`]
+            },
+            {
+              id: `${fullVerb}_m2`,
+              label: `Übertragener Sinn & Kontext`,
+              icon: '💡🗣️',
+              stars: Math.max(2, sem.stars - 1),
+              cefr: 'B2',
+              def: `Zweite Bedeutungsebene im beruflichen oder idiomatischen Kontext.`,
+              ex: `Können wir diesen Punkt heute Nachmittag noch einmal **${fullVerb}**?`,
+              collocations: [`beruflich ${fullVerb}`, `Thema ${fullVerb}`]
+            }
+          ]
+        };
+      });
+
+      return {
+        infinitive: meta.inf,
+        category: meta.cat,
+        cefr: meta.cefr,
+        stars: meta.stars,
+        icon: meta.icon,
+        stemForms: meta.stem,
+        coreConcept: `Wichtiges deutsches Basisverb (${meta.cefr}) aus dem Bereich „${(VERB_CATEGORIES.find(c => c.id === meta.cat) || {}).title || 'Alltag'}“.`,
+        derivatives
+      };
+    }
+
+    /********************************************************************
+     * 4. APPLICATION STATE (Mindly Navigation Stack & Filters)
+     ********************************************************************/
+    const state = {
+      rootMode: 'CATEGORIES', // 'CATEGORIES' or 'ALL_50'
+      level: 'ROOT',          // 'ROOT' -> 'CATEGORY' -> 'VERB' -> 'DERIVATIVE'
+      activeCategory: null,   // e.g., 'cat_pos'
+      activeVerb: 'setzen',   // e.g., 'setzen'
+      activeDerivative: null, // e.g., 'absetzen'
+      activeMeaningId: null,  // e.g., 'ab_1'
+      minStars: 1,            // 1..5 filter
+      cefrFilter: 'ALL',      // 'ALL', 'A1', 'A2', 'B1', 'B2'
+      orbitPage: 0,           // pagination for large rings
+      history: []             // undo stack
+    };
+
+    function pushHistory() {
+      state.history.push({
+        level: state.level,
+        activeCategory: state.activeCategory,
+        activeVerb: state.activeVerb,
+        activeDerivative: state.activeDerivative,
+        activeMeaningId: state.activeMeaningId,
+        orbitPage: state.orbitPage
+      });
+      if (state.history.length > 25) state.history.shift();
+      updateHistoryButton();
+    }
+
+    function popHistory() {
+      if (state.history.length === 0) return;
+      const prev = state.history.pop();
+      state.level = prev.level;
+      state.activeCategory = prev.activeCategory;
+      state.activeVerb = prev.activeVerb;
+      state.activeDerivative = prev.activeDerivative;
+      state.activeMeaningId = prev.activeMeaningId;
+      state.orbitPage = prev.orbitPage || 0;
+      updateHistoryButton();
+      renderMindmap();
+    }
+
+    function updateHistoryButton() {
+      const btn = document.getElementById('btnHistoryBack');
+      btn.disabled = state.history.length === 0 && state.level === 'ROOT';
+    }
+
+    /********************************************************************
+     * 5. HELPER FUNCTIONS FOR FILTERING & STARS
+     ********************************************************************/
+    function renderStarsString(count) {
+      return '★'.repeat(count) + '☆'.repeat(Math.max(0, 5 - count));
+    }
+
+    function matchesFilters(itemStars, itemCefr) {
+      if (itemStars < state.minStars) return false;
+      if (state.cefrFilter === 'ALL') return true;
+      if (state.cefrFilter === 'B2') return itemCefr === 'B2' || itemCefr === 'C1';
+      return itemCefr === state.cefrFilter;
+    }
+
+    /********************************************************************
+     * 6. ORBITAL RENDERING ENGINE (Mindly Planetary Layout)
+     ********************************************************************/
+    function renderMindmap() {
+      const nodesLayer = document.getElementById('nodesLayer');
+      const svgParentLine = document.getElementById('svgParentLine');
+      const svgOrbitRing = document.getElementById('svgOrbitRing');
+      const svgDynamicMarkers = document.getElementById('svgDynamicMarkers');
+      const orbitPager = document.getElementById('orbitPager');
+
+      nodesLayer.innerHTML = '';
+      svgDynamicMarkers.innerHTML = '';
+
+      // Coordinate system in percentage & SVG 780x700 space
+      const hasParent = state.level !== 'ROOT';
+      const centerX = 390;
+      const centerY = hasParent ? 405 : 355;
+      const parentY = 92;
+      const orbitRadius = hasParent ? 205 : 220;
+
+      // Update SVG Orbit Ring & Parent Line
+      svgOrbitRing.setAttribute('cx', centerX);
+      svgOrbitRing.setAttribute('cy', centerY);
+      svgOrbitRing.setAttribute('r', orbitRadius);
+
+      if (hasParent) {
+        svgParentLine.classList.remove('hidden');
+        svgParentLine.setAttribute('x1', centerX);
+        svgParentLine.setAttribute('y1', parentY + 45);
+        svgParentLine.setAttribute('x2', centerX);
+        svgParentLine.setAttribute('y2', centerY - 68);
+      } else {
+        svgParentLine.classList.add('hidden');
+      }
+
+      // Determine Parent Node, Center Node, and Orbiting Children based on current level
+      let parentConfig = null;
+      let centerConfig = null;
+      let orbitItems = [];
+
+      if (state.level === 'ROOT') {
+        if (state.rootMode === 'CATEGORIES') {
+          centerConfig = {
+            title: 'Top 50 Verben',
+            subtitle: '6 Wortfelder',
+            badge: 'DaF A1–C1',
+            icon: '🪐',
+            bg: '#0b76f6',
+            onClick: () => {
+              state.rootMode = 'ALL_50';
+              state.orbitPage = 0;
+              updateRootModeUI();
+              renderMindmap();
+            }
+          };
+          orbitItems = VERB_CATEGORIES.map((cat, idx) => {
+            const count = ALL_50_VERBS_META.filter(v => v.cat === cat.id && matchesFilters(v.stars, v.cefr)).length;
+            return {
+              id: cat.id,
+              title: cat.title,
+              subtitle: `${count} Verben`,
+              icon: cat.icon,
+              color: MINDLY_COLORS[idx % MINDLY_COLORS.length],
+              dots: true,
+              onClick: () => {
+                pushHistory();
+                state.level = 'CATEGORY';
+                state.activeCategory = cat.id;
+                state.orbitPage = 0;
+                renderMindmap();
+              }
+            };
+          });
+        } else {
+          // ALL_50 Wheel Mode
+          const filteredVerbs = ALL_50_VERBS_META.filter(v => matchesFilters(v.stars, v.cefr));
+          centerConfig = {
+            title: 'Alle 50 Verben',
+            subtitle: `${filteredVerbs.length} gefiltert`,
+            badge: `ab ${state.minStars}★`,
+            icon: '🇩🇪',
+            bg: '#0b76f6',
+            onClick: () => {
+              state.rootMode = 'CATEGORIES';
+              state.orbitPage = 0;
+              updateRootModeUI();
+              renderMindmap();
+            }
+          };
+          orbitItems = filteredVerbs.map((v, idx) => ({
+            id: v.inf,
+            title: v.inf,
+            subtitle: `${v.cefr} • ${renderStarsString(v.stars)}`,
+            icon: v.icon,
+            color: MINDLY_COLORS[idx % MINDLY_COLORS.length],
+            dots: true,
+            onClick: () => {
+              pushHistory();
+              state.level = 'VERB';
+              state.activeVerb = v.inf;
+              state.activeDerivative = null;
+              state.orbitPage = 0;
+              renderMindmap();
+            }
+          }));
+        }
+      } else if (state.level === 'CATEGORY') {
+        const cat = VERB_CATEGORIES.find(c => c.id === state.activeCategory) || VERB_CATEGORIES[0];
+        parentConfig = {
+          title: 'Top 50 Verben',
+          subtitle: 'Haupt-Orbit',
+          bg: '#5bb8ff',
+          onClick: () => {
+            pushHistory();
+            state.level = 'ROOT';
+            state.orbitPage = 0;
+            renderMindmap();
+          }
+        };
+        centerConfig = {
+          title: cat.title,
+          subtitle: 'Basisverb wählen',
+          badge: cat.icon,
+          icon: cat.icon,
+          bg: '#0b76f6',
+          onClick: null
+        };
+        const catVerbs = ALL_50_VERBS_META.filter(v => v.cat === cat.id && matchesFilters(v.stars, v.cefr));
+        orbitItems = catVerbs.map((v, idx) => ({
+          id: v.inf,
+          title: v.inf,
+          subtitle: `${v.cefr} • ${'★'.repeat(v.stars)}`,
+          icon: v.icon,
+          color: MINDLY_COLORS[idx % MINDLY_COLORS.length],
+          dots: true,
+          onClick: () => {
+            pushHistory();
+            state.level = 'VERB';
+            state.activeVerb = v.inf;
+            state.activeDerivative = null;
+            state.orbitPage = 0;
+            renderMindmap();
+          }
+        }));
+      } else if (state.level === 'VERB') {
+        const verbObj = getVerbData(state.activeVerb);
+        const cat = VERB_CATEGORIES.find(c => c.id === verbObj.category);
+        parentConfig = {
+          title: cat ? cat.title : 'Top 50 Verben',
+          subtitle: '↑ Zurück zur Übersicht',
+          bg: '#5bb8ff',
+          onClick: () => {
+            pushHistory();
+            if (state.activeCategory) {
+              state.level = 'CATEGORY';
+            } else {
+              state.level = 'ROOT';
+            }
+            state.orbitPage = 0;
+            renderMindmap();
+          }
+        };
+        centerConfig = {
+          title: verbObj.infinitive,
+          subtitle: verbObj.stemForms,
+          badge: `${verbObj.cefr} • ${'★'.repeat(verbObj.stars)}`,
+          icon: verbObj.icon,
+          bg: '#0b76f6',
+          onClick: null
+        };
+
+        const filteredDerivs = verbObj.derivatives.filter(d => matchesFilters(d.stars, d.cefr));
+        orbitItems = filteredDerivs.map((d, idx) => ({
+          id: d.fullVerb,
+          prefixHighlight: d.prefix,
+          basePart: verbObj.infinitive,
+          title: d.fullVerb,
+          subtitle: `${d.cefr} • ${'★'.repeat(d.stars)}`,
+          tag: d.separable ? 'trennbar' : 'untrennbar',
+          icon: d.meanings[0]?.icon || '🔹',
+          color: MINDLY_COLORS[idx % MINDLY_COLORS.length],
+          dots: true,
+          noteIcon: true,
+          onClick: () => {
+            pushHistory();
+            state.level = 'DERIVATIVE';
+            state.activeDerivative = d.fullVerb;
+            state.activeMeaningId = d.meanings[0]?.id || null;
+            state.orbitPage = 0;
+            renderMindmap();
+          }
+        }));
+      } else if (state.level === 'DERIVATIVE') {
+        const verbObj = getVerbData(state.activeVerb);
+        const derivObj = verbObj.derivatives.find(d => d.fullVerb === state.activeDerivative) || verbObj.derivatives[0];
+
+        parentConfig = {
+          title: verbObj.infinitive,
+          subtitle: `↑ Stammverb (${verbObj.derivatives.length} Präfixe)`,
+          bg: '#5bb8ff',
+          onClick: () => {
+            pushHistory();
+            state.level = 'VERB';
+            state.orbitPage = 0;
+            renderMindmap();
+          }
+        };
+
+        centerConfig = {
+          title: `${derivObj.prefix}|${verbObj.infinitive}`,
+          subtitle: derivObj.separable ? '✂️ trennbar' : '🔗 untrennbar',
+          badge: `${derivObj.cefr} • ${'★'.repeat(derivObj.stars)}`,
+          icon: derivObj.meanings[0]?.icon || '✨',
+          bg: '#0b76f6',
+          onClick: null
+        };
+
+        const filteredMeanings = derivObj.meanings.filter(m => matchesFilters(m.stars, m.cefr));
+        const listToUse = filteredMeanings.length > 0 ? filteredMeanings : derivObj.meanings;
+
+        orbitItems = listToUse.map((m, idx) => ({
+          id: m.id,
+          title: m.label,
+          subtitle: `${m.cefr} • ${'★'.repeat(m.stars)}`,
+          icon: m.icon,
+          isSelected: state.activeMeaningId === m.id,
+          color: MINDLY_COLORS[idx % MINDLY_COLORS.length],
+          noteIcon: true,
+          onClick: () => {
+            state.activeMeaningId = m.id;
+            renderMindmap();
+          }
+        }));
+      }
+
+      // 1. Render Parent Breadcrumb Circle at Top (if not ROOT)
+      if (parentConfig) {
+        const parentEl = document.createElement('button');
+        parentEl.className = 'node-circle absolute rounded-full flex flex-col items-center justify-center text-center shadow-lg px-3 cursor-pointer z-20 pop-in';
+        parentEl.style.width = '112px';
+        parentEl.style.height = '112px';
+        parentEl.style.left = `${(centerX / 780) * 100}%`;
+        parentEl.style.top = `${(parentY / 700) * 100}%`;
+        parentEl.style.transform = 'translate(-50%, -50%)';
+        parentEl.style.backgroundColor = parentConfig.bg;
+        parentEl.style.color = '#082f49';
+        parentEl.innerHTML = `
+          <span class="text-xs font-extrabold leading-tight line-clamp-2">${parentConfig.title}</span>
+          <span class="text-[10px] font-semibold opacity-80 mt-0.5">${parentConfig.subtitle}</span>
+        `;
+        parentEl.addEventListener('click', parentConfig.onClick);
+        nodesLayer.appendChild(parentEl);
+      }
+
+      // 2. Render Active Center Circle (Mindly Royal Blue Sphere)
+      if (centerConfig) {
+        const centerEl = document.createElement('div');
+        centerEl.className = 'node-circle center-circle-anim absolute rounded-full flex flex-col items-center justify-center text-center text-white px-4 z-20 cursor-pointer';
+        centerEl.style.width = '144px';
+        centerEl.style.height = '144px';
+        centerEl.style.left = `${(centerX / 780) * 100}%`;
+        centerEl.style.top = `${(centerY / 700) * 100}%`;
+        centerEl.style.transform = 'translate(-50%, -50%)';
+        centerEl.style.background = 'linear-gradient(145deg, #0077ff 0%, #0055d4 100%)';
+        centerEl.innerHTML = `
+          <span class="text-2xl mb-0.5">${centerConfig.icon || ''}</span>
+          <span class="font-extrabold text-base sm:text-lg leading-tight tracking-tight">${centerConfig.title}</span>
+          <span class="text-[11px] font-medium text-blue-100 mt-0.5 line-clamp-1">${centerConfig.subtitle || ''}</span>
+          ${centerConfig.badge ? `<span class="mt-1 px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">${centerConfig.badge}</span>` : ''}
+        `;
+        if (centerConfig.onClick) {
+          centerEl.addEventListener('click', centerConfig.onClick);
+        }
+        nodesLayer.appendChild(centerEl);
+      }
+
+      // 3. Pagination for Orbiting Items (max 8 per orbit ring so it stays clean like Mindly)
+      const pageSize = 8;
+      const totalPages = Math.max(1, Math.ceil(orbitItems.length / pageSize));
+      if (state.orbitPage >= totalPages) state.orbitPage = 0;
+
+      const pagedItems = orbitItems.slice(state.orbitPage * pageSize, (state.orbitPage + 1) * pageSize);
+
+      if (totalPages > 1) {
+        orbitPager.classList.remove('hidden');
+        document.getElementById('pagerInfo').textContent = `Orbit ${state.orbitPage + 1} / ${totalPages} (${orbitItems.length})`;
+      } else {
+        orbitPager.classList.add('hidden');
+      }
+
+      // Empty state if filter is too strict
+      if (pagedItems.length === 0) {
+        const emptyBadge = document.createElement('div');
+        emptyBadge.className = 'absolute bg-white/95 px-5 py-3 rounded-2xl shadow-lg border border-amber-200 text-center z-30';
+        emptyBadge.style.left = '50%';
+        emptyBadge.style.top = '78%';
+        emptyBadge.style.transform = 'translate(-50%, -50%)';
+        emptyBadge.innerHTML = `
+          <p class="text-xs font-bold text-slate-700">Keine Knoten für diesen Filter (${state.minStars}★ / ${state.cefrFilter}).</p>
+          <button onclick="resetFilters()" class="mt-1.5 text-xs font-extrabold text-blue-600 underline">Filter zurücksetzen</button>
+        `;
+        nodesLayer.appendChild(emptyBadge);
+      }
+
+      // 4. Render Orbiting Circles & Mindly '+' Markers between them on the SVG Ring
+      const count = pagedItems.length;
+      pagedItems.forEach((item, index) => {
+        // Start angle at -90deg (top) and distribute evenly clockwise
+        const angleDeg = -90 + (index * (360 / count));
+        const angleRad = (angleDeg * Math.PI) / 180;
+
+        const nodeX = centerX + orbitRadius * Math.cos(angleRad);
+        const nodeY = centerY + orbitRadius * Math.sin(angleRad);
+
+        // Also draw a Mindly '+' circle halfway between this node and the next node on the ring
+        if (count >= 2) {
+          const midAngleDeg = angleDeg + (180 / count);
+          const midAngleRad = (midAngleDeg * Math.PI) / 180;
+          const plusX = centerX + orbitRadius * Math.cos(midAngleRad);
+          const plusY = centerY + orbitRadius * Math.sin(midAngleRad);
+
+          const plusGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          plusGroup.innerHTML = `
+            <circle cx="${plusX}" cy="${plusY}" r="9" fill="#cbd5e1" />
+            <path d="M ${plusX - 4} ${plusY} L ${plusX + 4} ${plusY} M ${plusX} ${plusY - 4} L ${plusX} ${plusY + 4}" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+          `;
+          svgDynamicMarkers.appendChild(plusGroup);
+        }
+
+        // Create Orbit Node Button
+        const nodeEl = document.createElement('button');
+        const isSelectedMeaning = item.isSelected;
+        nodeEl.className = `node-circle absolute rounded-full flex flex-col items-center justify-center text-center px-2.5 cursor-pointer z-20 pop-in ${isSelectedMeaning ? 'ring-4 ring-blue-600 ring-offset-2' : ''}`;
+        const diameter = count > 6 ? 106 : 116;
+        nodeEl.style.width = `${diameter}px`;
+        nodeEl.style.height = `${diameter}px`;
+        nodeEl.style.left = `${(nodeX / 780) * 100}%`;
+        nodeEl.style.top = `${(nodeY / 700) * 100}%`;
+        nodeEl.style.transform = 'translate(-50%, -50%)';
+        nodeEl.style.backgroundColor = item.color.bg;
+        nodeEl.style.color = item.color.text;
+        nodeEl.style.boxShadow = '0 10px 25px -5px rgba(15, 23, 42, 0.14)';
+
+        const titleHtml = item.prefixHighlight
+          ? `<span class="font-extrabold text-sm sm:text-[15px] leading-tight"><span class="underline decoration-2">${item.prefixHighlight}</span>|${item.basePart}</span>`
+          : `<span class="font-bold text-xs sm:text-sm leading-tight line-clamp-2">${item.title}</span>`;
+
+        nodeEl.innerHTML = `
+          <!-- Top Emoji Bubble (like Mindly Wien Zoo panda icon) -->
+          <div class="w-6 h-6 rounded-full bg-white/90 shadow-xs flex items-center justify-center text-xs mb-1 -mt-1">
+            ${item.icon || '🔹'}
+          </div>
+          ${titleHtml}
+          <span class="text-[10px] font-bold opacity-85 mt-0.5">${item.subtitle || ''}</span>
+          ${item.tag ? `<span class="text-[9px] font-extrabold uppercase tracking-tight px-1.5 py-0.2 rounded-full bg-white/60 mt-0.5">${item.tag}</span>` : ''}
+          ${item.dots ? `<span class="text-xs font-black tracking-widest opacity-60 leading-none mt-0.5">•••</span>` : ''}
+        `;
+
+        nodeEl.addEventListener('click', item.onClick);
+        nodesLayer.appendChild(nodeEl);
+      });
+
+      // Update Side/Bottom Context Card & Breadcrumb
+      renderSidePanel();
+    }
+
+    /********************************************************************
+     * 7. CONTEXT PANEL RENDERER (Detailed Meaning Card & Didactic Info)
+     ********************************************************************/
+    function renderSidePanel() {
+      const panel = document.getElementById('panelContent');
+      const breadcrumbText = document.getElementById('breadcrumbText');
+
+      if (state.level === 'ROOT') {
+        breadcrumbText.textContent = 'Ebene 0: Haupt-Zentrum (Top 50 Verben)';
+        panel.innerHTML = `
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl shadow-md">🪐</div>
+            <div>
+              <span class="text-[11px] font-extrabold uppercase tracking-wider text-blue-600">Mindly DaF Methode</span>
+              <h2 class="text-lg font-extrabold text-slate-800">Visuelles Verb-Netzwerk</h2>
+            </div>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
+            Klicke im Orbit auf eine <strong>Kategorie</strong> (z.B. <em>Position & Stellen</em>) oder direkt unten auf ein Verb wie <strong>setzen</strong>, <strong>kommen</strong> oder <strong>gehen</strong>. Das gewählte Wort wandert wie in der <strong>Mindly-App</strong> ins Zentrum!
+          </p>
+          <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80 space-y-2 text-xs">
+            <div class="font-bold text-slate-700 flex items-center gap-1.5">✨ Warum diese Methode funktioniert:</div>
+            <div class="flex items-start gap-2 text-slate-600">
+              <span class="text-amber-500 font-bold">★</span>
+              <span><strong>5-Sterne-Filter (oben):</strong> Blendet seltene C1-Verben (wie <em>beisetzen</em>) aus, damit du dich auf die wichtigsten 80% konzentrierst.</span>
+            </div>
+            <div class="flex items-start gap-2 text-slate-600">
+              <span class="text-blue-500 font-bold">●</span>
+              <span><strong>3-Stufen-Zoom:</strong> Wortfeld → Basisverb (<em>setzen</em>) → Präfixverb (<em>absetzen</em>) → Alltagsbedeutungen mit Kollokationen.</span>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.level === 'CATEGORY') {
+        const cat = VERB_CATEGORIES.find(c => c.id === state.activeCategory) || VERB_CATEGORIES[0];
+        const verbsInCat = ALL_50_VERBS_META.filter(v => v.cat === cat.id);
+        breadcrumbText.textContent = `Top 50 Verben › ${cat.title}`;
+        panel.innerHTML = `
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs">${cat.icon} Wortfeld</span>
+            <span class="text-xs font-bold text-slate-400">${verbsInCat.length} Basisverben</span>
+          </div>
+          <h2 class="text-xl font-extrabold text-slate-800 mb-1">${cat.title}</h2>
+          <p class="text-xs text-slate-500 mb-4">Klicke auf einen Kreis im Orbit, um dessen Präfix-Stammbaum zu öffnen.</p>
+          <div class="flex flex-wrap gap-1.5">
+            ${verbsInCat.map(v => `
+              <button onclick="jumpToVerb('${v.inf}')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 font-bold text-xs transition flex items-center gap-1">
+                <span>${v.icon}</span><span>${v.inf}</span>
+              </button>
+            `).join('')}
+          </div>
+        `;
+        return;
+      }
+
+      const verbObj = getVerbData(state.activeVerb);
+
+      if (state.level === 'VERB') {
+        breadcrumbText.textContent = `Verben › ${verbObj.infinitive} (${verbObj.derivatives.length} Präfix-Äste)`;
+        panel.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <span class="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-extrabold text-xs">Stammverb • ${verbObj.cefr}</span>
+            <span class="text-amber-500 font-bold text-sm tracking-tight">${renderStarsString(verbObj.stars)}</span>
+          </div>
+          <div class="flex items-center gap-2.5 mb-2">
+            <span class="text-3xl">${verbObj.icon}</span>
+            <div>
+              <h2 class="text-2xl font-extrabold text-slate-900 leading-none">${verbObj.infinitive}</h2>
+              <p class="text-xs font-semibold text-slate-500 mt-1">${verbObj.stemForms}</p>
+            </div>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-700 bg-slate-50 p-3 rounded-2xl border border-slate-200/70 mb-3">
+            💡 <strong>Kernkonzept:</strong> ${verbObj.coreConcept}
+          </p>
+          <div class="space-y-1.5">
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Präfix-Verzweigungen im Orbit (${verbObj.derivatives.length}):</div>
+            <div class="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+              ${verbObj.derivatives.map(d => `
+                <button onclick="drillIntoDerivative('${d.fullVerb}')" class="text-left p-2 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center justify-between">
+                  <div>
+                    <div class="font-bold text-xs text-slate-800"><span class="text-blue-600">${d.prefix}</span>${verbObj.infinitive}</div>
+                    <div class="text-[10px] text-slate-400">${d.separable ? 'trennbar' : 'untrennbar'} • ${d.cefr}</div>
+                  </div>
+                  <span class="text-[10px] font-bold text-amber-500">${'★'.repeat(d.stars)}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.level === 'DERIVATIVE') {
+        const derivObj = verbObj.derivatives.find(d => d.fullVerb === state.activeDerivative) || verbObj.derivatives[0];
+        const activeMeaning = derivObj.meanings.find(m => m.id === state.activeMeaningId) || derivObj.meanings[0];
+        breadcrumbText.textContent = `Verben › ${verbObj.infinitive} › ${derivObj.fullVerb}`;
+
+        // Highlight **words** in example sentence
+        const formattedExample = activeMeaning.ex.replace(/\*\*(.*?)\*\*/g, '<span class="px-1.5 py-0.5 rounded-md bg-amber-200/80 text-slate-900 font-extrabold">$1</span>');
+
+        panel.innerHTML = `
+          <div class="flex flex-wrap items-center justify-between gap-1 mb-2">
+            <div class="flex items-center gap-1.5">
+              <span class="px-2.5 py-0.5 rounded-full ${derivObj.separable ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-800'} font-extrabold text-[11px]">
+                ${derivObj.separable ? '✂️ trennbar' : '🔗 untrennbar'}
+              </span>
+              <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold text-[11px]">Betonung: ${derivObj.stress}</span>
+            </div>
+            <span class="text-amber-500 font-bold text-sm">${renderStarsString(derivObj.stars)}</span>
+          </div>
+
+          <h2 class="text-2xl font-extrabold text-slate-900 mb-1">
+            <span class="text-blue-600 underline decoration-2">${derivObj.prefix}</span>${verbObj.infinitive}
+          </h2>
+          <p class="text-xs text-slate-500 mb-3">🧭 <strong>Präfix-Logik (${derivObj.prefix}-):</strong> ${derivObj.hint}</p>
+
+          <!-- Active Meaning Detail Card -->
+          <div class="bg-gradient-to-br from-indigo-50/90 via-white to-blue-50/80 rounded-2xl p-4 border-2 border-blue-200 shadow-xs space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-extrabold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
+                <span class="text-lg">${activeMeaning.icon}</span>
+                <span>${activeMeaning.label}</span>
+              </span>
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white border border-slate-200">${activeMeaning.cefr} • ${'★'.repeat(activeMeaning.stars)}</span>
+            </div>
+
+            <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">${activeMeaning.def}</p>
+
+            <div class="bg-white p-3 rounded-xl border border-slate-200/90 text-xs sm:text-sm text-slate-800 italic">
+              „${formattedExample}“
+            </div>
+
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Typische Kollokationen (Wortverbindungen):</div>
+              <div class="flex flex-wrap gap-1.5">
+                ${(activeMeaning.collocations || []).map(col => `
+                  <span class="px-2.5 py-1 rounded-full bg-slate-800 text-white text-[11px] font-semibold">${col}</span>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Meaning Switcher Pills -->
+          <div class="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1">
+            ${derivObj.meanings.map((m, idx) => `
+              <button onclick="selectMeaning('${m.id}')" class="px-2.5 py-1 rounded-full text-xs font-bold shrink-0 transition ${m.id === activeMeaning.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                ${idx + 1}. ${m.icon} ${m.label.split(' ')[0]}
+              </button>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+
+    /********************************************************************
+     * 8. INTERACTION HANDLERS & NAVIGATION SHORTCUTS
+     ********************************************************************/
+    window.jumpToVerb = function(infinitive) {
+      pushHistory();
+      state.level = 'VERB';
+      state.activeVerb = infinitive;
+      state.activeDerivative = null;
+      state.orbitPage = 0;
+      document.getElementById('catalogDrawer').classList.add('hidden');
+      renderMindmap();
+    };
+
+    window.drillIntoDerivative = function(fullVerb) {
+      pushHistory();
+      const verbObj = getVerbData(state.activeVerb);
+      const deriv = verbObj.derivatives.find(d => d.fullVerb === fullVerb);
+      state.level = 'DERIVATIVE';
+      state.activeDerivative = fullVerb;
+      state.activeMeaningId = deriv?.meanings[0]?.id || null;
+      state.orbitPage = 0;
+      renderMindmap();
+    };
+
+    window.selectMeaning = function(meaningId) {
+      state.activeMeaningId = meaningId;
+      renderMindmap();
+    };
+
+    window.resetFilters = function() {
+      state.minStars = 1;
+      state.cefrFilter = 'ALL';
+      updateStarUI();
+      updateCefrUI();
+      renderMindmap();
+    };
+
+    function updateStarUI() {
+      const buttons = document.querySelectorAll('.star-btn');
+      buttons.forEach(btn => {
+        const starVal = parseInt(btn.getAttribute('data-star'), 10);
+        if (starVal <= state.minStars) {
+          btn.classList.remove('text-slate-300');
+          btn.classList.add('text-amber-400');
+        } else {
+          btn.classList.remove('text-amber-400');
+          btn.classList.add('text-slate-300');
+        }
+      });
+      const labels = {
+        1: 'ab 1★ (Alle)',
+        2: 'ab 2★ (Üblich)',
+        3: 'ab 3★ (Wichtig)',
+        4: 'ab 4★ (Sehr häufig)',
+        5: 'Nur 5★ (Essentiell)'
+      };
+      document.getElementById('starFilterLabel').textContent = labels[state.minStars];
+    }
+
+    function updateCefrUI() {
+      document.querySelectorAll('.cefr-btn').forEach(btn => {
+        const lv = btn.getAttribute('data-level');
+        if (lv === state.cefrFilter) {
+          btn.className = 'cefr-btn px-2.5 py-1 rounded-full bg-white text-slate-900 shadow-xs transition';
+        } else {
+          btn.className = 'cefr-btn px-2 py-1 rounded-full text-slate-600 hover:text-slate-900 transition';
+        }
+      });
+    }
+
+    function updateRootModeUI() {
+      const icon = document.getElementById('rootModeIcon');
+      const label = document.getElementById('rootModeLabel');
+      if (state.rootMode === 'CATEGORIES') {
+        icon.textContent = '🪐';
+        label.textContent = 'Ansicht: Kategorien';
+      } else {
+        icon.textContent = '🎡';
+        label.textContent = 'Ansicht: Alle 50 Verben';
+      }
+    }
+
+    /********************************************************************
+     * 9. CATALOG DRAWER (ALL 50 VERBS + INSTANT SEARCH)
+     ********************************************************************/
+    function renderCatalogList(query = '') {
+      const container = document.getElementById('verbCatalogList');
+      const q = query.trim().toLowerCase();
+
+      const filtered = ALL_50_VERBS_META.filter(v => {
+        if (!q) return true;
+        if (v.inf.includes(q)) return true;
+        return v.prefixes.some(p => `${p}${v.inf}`.includes(q));
+      });
+
+      container.innerHTML = filtered.map((v, idx) => {
+        const isFlagship = Boolean(FLAGSHIP_VERBS[v.inf]);
+        return `
+          <button onclick="jumpToVerb('${v.inf}')" class="w-full p-2.5 rounded-2xl hover:bg-blue-50 border border-slate-100 hover:border-blue-200 flex items-center justify-between transition text-left">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-lg">${v.icon}</span>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="font-extrabold text-sm text-slate-800">${idx + 1}. ${v.inf}</span>
+                  ${isFlagship ? '<span class="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-700 font-bold">Voll-Kuratiert</span>' : ''}
+                </div>
+                <div class="text-[11px] text-slate-400">${v.prefixes.slice(0, 5).map(p => p + '-').join(', ')}</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-bold text-slate-700">${v.cefr}</div>
+              <div class="text-[10px] text-amber-500">${'★'.repeat(v.stars)}</div>
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    /********************************************************************
+     * 10. EVENT LISTENERS INITIALIZATION
+     ********************************************************************/
+    window.addEventListener('DOMContentLoaded', () => {
+      // Star Filter clicks
+      document.querySelectorAll('.star-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.minStars = parseInt(btn.getAttribute('data-star'), 10);
+          state.orbitPage = 0;
+          updateStarUI();
+          renderMindmap();
+        });
+      });
+
+      // CEFR Filter clicks
+      document.querySelectorAll('.cefr-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.cefrFilter = btn.getAttribute('data-level');
+          state.orbitPage = 0;
+          updateCefrUI();
+          renderMindmap();
+        });
+      });
+
+      // Root Mode Toggle (Categories vs All 50 Wheel)
+      document.getElementById('btnToggleRootMode').addEventListener('click', () => {
+        pushHistory();
+        state.level = 'ROOT';
+        state.rootMode = state.rootMode === 'CATEGORIES' ? 'ALL_50' : 'CATEGORIES';
+        state.orbitPage = 0;
+        updateRootModeUI();
+        renderMindmap();
+      });
+
+      // Back / Undo & Home Buttons
+      document.getElementById('btnHistoryBack').addEventListener('click', () => {
+        if (state.history.length > 0) {
+          popHistory();
+        } else if (state.level !== 'ROOT') {
+          state.level = 'ROOT';
+          renderMindmap();
+        }
+      });
+
+      document.getElementById('btnResetHome').addEventListener('click', () => {
+        pushHistory();
+        state.level = 'ROOT';
+        state.orbitPage = 0;
+        renderMindmap();
+      });
+
+      // Orbit Pager Buttons
+      document.getElementById('btnPrevPage').addEventListener('click', () => {
+        state.orbitPage = Math.max(0, state.orbitPage - 1);
+        renderMindmap();
+      });
+      document.getElementById('btnNextPage').addEventListener('click', () => {
+        state.orbitPage += 1;
+        renderMindmap();
+      });
+
+      // Catalog Drawer
+      const catalogDrawer = document.getElementById('catalogDrawer');
+      document.getElementById('btnOpenCatalog').addEventListener('click', () => {
+        renderCatalogList(document.getElementById('verbSearchInput').value);
+        catalogDrawer.classList.remove('hidden');
+      });
+      document.getElementById('btnCloseCatalog').addEventListener('click', () => catalogDrawer.classList.add('hidden'));
+      document.getElementById('catalogBackdrop').addEventListener('click', () => catalogDrawer.classList.add('hidden'));
+      document.getElementById('verbSearchInput').addEventListener('input', (e) => renderCatalogList(e.target.value));
+
+      // JSON Preview Modal
+      const jsonModal = document.getElementById('jsonModal');
+      document.getElementById('btnOpenJsonModal').addEventListener('click', () => {
+        const currentVerbObj = getVerbData(state.activeVerb);
+        document.getElementById('jsonPreviewBox').textContent = JSON.stringify(currentVerbObj, null, 2);
+        jsonModal.classList.remove('hidden');
+        jsonModal.classList.add('flex');
+      });
+      const closeJson = () => {
+        jsonModal.classList.add('hidden');
+        jsonModal.classList.remove('flex');
+      };
+      document.getElementById('btnCloseJsonModal').addEventListener('click', closeJson);
+      document.getElementById('jsonModalBackdrop').addEventListener('click', closeJson);
+
+      document.getElementById('btnCopyJson').addEventListener('click', () => {
+        const txt = document.getElementById('jsonPreviewBox').textContent;
+        const temp = document.createElement('textarea');
+        temp.value = txt;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        const copyBtn = document.getElementById('btnCopyJson');
+        copyBtn.textContent = '✓ Kopiert!';
+        setTimeout(() => { copyBtn.textContent = 'JSON kopieren'; }, 1800);
+      });
+
+      // Start on "setzen" so user immediately sees their Mindly verb tree in action, with 1 click up to "Top 50 Verben"
+      state.level = 'VERB';
+      state.activeCategory = 'cat_pos';
+      state.activeVerb = 'setzen';
+      updateStarUI();
+      updateCefrUI();
+      updateHistoryButton();
+      renderMindmap();
+    });
+  </script>
+</body>
+</html>

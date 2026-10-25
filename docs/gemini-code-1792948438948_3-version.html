@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VerbOrbit 3.0 – Alle 50 Verben & Duolingo-Killer UX</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;600;700&display=swap');
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(circle at 50% 35%, #ffffff 0%, #f1f5f9 65%, #e2e8f0 100%);
+      color: #0f172a;
+      overflow-x: hidden;
+      user-select: none;
+    }
+    .arabic-text {
+      font-family: 'Noto Sans Arabic', sans-serif;
+      direction: rtl;
+    }
+
+    /* Mindly Planet Transitions */
+    .orbit-planet {
+      transition: all 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .orbit-planet:hover {
+      transform: translate(-50%, -50%) scale(1.1);
+      z-index: 35;
+    }
+    .orbit-planet:active {
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+
+    /* Satz-Klammer Schleuder-Animation (Trennbar vs. Untrennbar) */
+    @keyframes slingPrefixToEnd {
+      0% { transform: translateX(-140px) translateY(0) scale(1.1); opacity: 0.3; }
+      50% { transform: translateX(-60px) translateY(-18px) scale(1.15); opacity: 1; }
+      100% { transform: translateX(0) translateY(0) scale(1); opacity: 1; }
+    }
+    @keyframes magnetPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+    .animate-sling {
+      display: inline-block;
+      animation: slingPrefixToEnd 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .animate-magnet {
+      display: inline-block;
+      animation: magnetPulse 1.4s ease-in-out infinite;
+    }
+
+    /* Dual Coding Keyframes */
+    @keyframes floatUpDown {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(8px); }
+    }
+    @keyframes moveRight {
+      0%, 100% { transform: translateX(-5px); }
+      50% { transform: translateX(6px); }
+    }
+    .svg-float { animation: floatUpDown 2.2s ease-in-out infinite; }
+    .svg-slide { animation: moveRight 2.2s ease-in-out infinite; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <!-- ===================================================================== -->
+  <!-- TOP HUD: Galaxie-Fortschritt, 50-Verben-Katalog, Zwiebel-Stufen & Quiz -->
+  <!-- ===================================================================== -->
+  <header class="w-full max-w-7xl mx-auto px-3 sm:px-6 pt-3 pb-2 flex flex-wrap items-center justify-between gap-2 z-40">
+    <!-- Left: Menu Button (All 50 Verbs Drawer) + Brand -->
+    <div class="flex items-center gap-2.5">
+      <button onclick="toggleVerbDrawer()" class="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-md transition">
+        <span>☰</span>
+        <span>Alle 50 Verben</span>
+        <span id="masteredCountBadge" class="px-1.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black">0/50</span>
+      </button>
+
+      <button onclick="enterGalaxyOverview()" class="px-3 py-2 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs shadow-sm transition flex items-center gap-1.5" title="Zurück zur Mindly-Gesamtübersicht">
+        <span>🪐</span>
+        <span class="hidden sm:inline">Galaxie-Orbit</span>
+      </button>
+    </div>
+
+    <!-- Center: Zwiebel-Prinzip (Scaffolding Layer 1 • 2 • 3) -->
+    <div class="flex items-center bg-white/90 backdrop-blur p-1 rounded-2xl shadow-sm border border-slate-200">
+      <span class="text-[11px] font-extrabold text-slate-400 px-2 hidden md:inline">🧅 Fokus-Schicht:</span>
+      <button onclick="setOnionLayer(1)" id="onionBtn1" class="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition bg-blue-600 text-white shadow-sm">
+        1: Überleben (★5)
+      </button>
+      <button onclick="setOnionLayer(2)" id="onionBtn2" class="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition text-slate-600 hover:bg-slate-100">
+        2: Alltag (+★4)
+      </button>
+      <button onclick="setOnionLayer(3)" id="onionBtn3" class="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition text-slate-600 hover:bg-slate-100">
+        3: Komplett (+★3)
+      </button>
+    </div>
+
+    <!-- Right: Kompass-Legende, Muttersprache & Räumliches Quiz -->
+    <div class="flex items-center gap-2">
+      <select id="nativeLangSelect" onchange="changeNativeLang(this.value)" class="bg-amber-50 border border-amber-200 text-amber-900 text-xs font-extrabold rounded-2xl px-2.5 py-2 shadow-sm">
+        <option value="ar">🇸🇦 العربية (AR)</option>
+        <option value="en">🇬🇧 English (EN)</option>
+        <option value="tr">🇹🇷 Türkçe (TR)</option>
+      </select>
+
+      <button onclick="toggleCompassModal()" class="p-2 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-bold shadow-sm" title="360° Präfix-Kompass & Zug-Logik">
+        🧭 <span class="hidden lg:inline">Kompass-Logik</span>
+      </button>
+
+      <button onclick="toggleQuizMode()" id="quizModeBtn" class="px-3.5 py-2 rounded-2xl text-xs font-extrabold bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md hover:opacity-95 transition">
+        🎯 Mindmap-Quiz
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- QUIZ MISSION BAR (Nur aktiv im Topografischen Quiz-Modus)             -->
+  <!-- ===================================================================== -->
+  <div id="quizMissionBar" class="hidden w-full max-w-3xl mx-auto px-4 mt-1 z-30">
+    <div class="bg-slate-900 text-white rounded-3xl p-4 shadow-xl border border-violet-500/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="text-center sm:text-left">
+        <div class="flex items-center justify-center sm:justify-start gap-2 mb-1">
+          <span class="px-2 py-0.5 rounded-full bg-violet-500/30 border border-violet-400/40 text-violet-200 text-[10px] font-extrabold uppercase tracking-wider">
+            Räumliches Gedächtnis-Training
+          </span>
+          <span id="quizStreakBadge" class="text-xs font-extrabold text-amber-400">🔥 Serie: 0</span>
+        </div>
+        <p id="quizQuestionText" class="text-sm sm:text-base font-extrabold text-white">
+          Tippe auf den richtigen Präfix-Planeten auf der Landkarte!
+        </p>
+        <p id="quizQuestionSub" class="text-xs text-slate-300 mt-0.5"></p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button onclick="nextQuizChallenge()" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition">
+          Nächste Frage ➔
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN WORKSPACE: Mindly Orbital Map + Interactive Physics Inspector    -->
+  <!-- ===================================================================== -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 py-2 flex flex-col lg:flex-row items-center justify-center gap-6">
+
+    <!-- LEFT: MINDLY ORBITAL PLANETARIUM -->
+    <section class="relative w-[355px] h-[410px] sm:w-[480px] sm:h-[490px] flex items-center justify-center shrink-0">
+
+      <!-- 360° Kompass-Himmelsrichtungen im Hintergrund (Orientierung fürs Gehirn) -->
+      <div id="compassWatermark" class="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[310px] h-[310px] sm:w-[390px] sm:h-[390px] rounded-full pointer-events-none flex items-center justify-center">
+        <span class="absolute -top-5 text-[10px] font-extrabold uppercase tracking-widest text-rose-400/80">▲ 12 Uhr: Kontakt & Start (an/auf)</span>
+        <span class="absolute -bottom-5 text-[10px] font-extrabold uppercase tracking-widest text-sky-500/80">▼ 6 Uhr: Trennung & Weg (ab/aus)</span>
+        <span class="absolute -right-6 rotate-90 text-[10px] font-extrabold uppercase tracking-widest text-amber-500/80">► Ziel / Durch</span>
+        <span class="absolute -left-6 -rotate-90 text-[10px] font-extrabold uppercase tracking-widest text-emerald-500/80">◄ Mit / Zurück</span>
+      </div>
+
+      <!-- MINDLY PARENT BREADCRUMB NODE (Oben an vertikaler Linie wie im Screenshot) -->
+      <div id="mindlyTopParent" onclick="handleTopParentClick()" class="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center cursor-pointer group z-20">
+        <div id="mindlyTopParentCircle" class="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-sky-400 text-white flex flex-col items-center justify-center text-center p-1.5 shadow-md group-hover:scale-105 transition">
+          <span class="text-[9px] uppercase font-extrabold opacity-85" id="mindlyTopSub">Galaxie</span>
+          <span class="text-xs font-extrabold leading-tight" id="mindlyTopTitle">Top 50</span>
+        </div>
+        <div class="w-[2px] h-9 sm:h-11 bg-slate-300"></div>
+      </div>
+
+      <!-- Äußerer Orbit-Ring (Trennbare Präfixe) -->
+      <div id="outerOrbitRing" class="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[255px] h-[255px] sm:w-[330px] sm:h-[330px] rounded-full border-[1.5px] border-dashed border-slate-300/90 pointer-events-none"></div>
+
+      <!-- Innerer Orbit-Ring (Untrennbare Präfixe: ver-, be-, ent-, er-) -->
+      <div id="innerOrbitRing" class="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[175px] h-[175px] sm:w-[220px] sm:h-[220px] rounded-full border border-indigo-200/70 pointer-events-none"></div>
+
+      <!-- Dynamische Verbindungslinien -->
+      <svg id="mindmapSvgLines" class="absolute inset-0 w-full h-full pointer-events-none z-0"></svg>
+
+      <!-- ZENTRUM-KNOTEN (Das aktive Basisverb oder die Wortfeld-Kategorie) -->
+      <div id="mindlyCenterNode" onclick="speakCenterVerb()" class="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-blue-600 text-white flex flex-col items-center justify-center text-center p-2.5 shadow-2xl shadow-blue-600/30 cursor-pointer z-20 hover:bg-blue-700 transition">
+        <span id="centerLevelBadge" class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-blue-500/80 text-blue-100 mb-0.5">
+          Verb #1 • A1
+        </span>
+        <span id="centerMainWord" class="text-xl sm:text-2xl font-extrabold tracking-tight leading-none">
+          kommen
+        </span>
+        <span id="centerSubTranslation" class="text-[11px] font-semibold text-blue-100 mt-1 arabic-text">
+          يأتي
+        </span>
+      </div>
+
+      <!-- PLANETEN-KNOTEN CONTAINER -->
+      <div id="orbitPlanetsContainer" class="absolute inset-0 pointer-events-none"></div>
+    </section>
+
+    <!-- RIGHT: DIE NEUE INTERAKTIVE LERN-KONSOLE (Physics Sentence + Dual Coding + Chunking) -->
+    <aside class="w-full max-w-xl bg-white rounded-3xl shadow-xl border border-slate-200/80 p-4 sm:p-6 z-20">
+
+      <!-- Kopfzeile der Karte: Aktives Präfixverb + Trennbarkeits-Physik-Status + Audio -->
+      <div class="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span id="inspectorVerbBadge" class="px-3 py-1 rounded-xl bg-rose-100 text-rose-900 font-black text-sm">
+            an|kommen
+          </span>
+          <span id="inspectorSeparableBadge" class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-extrabold text-xs flex items-center gap-1">
+            🧲 Trennbar (Präfix fliegt ans Satzende!)
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="inspectorStars" class="text-amber-400 text-sm tracking-tight">★★★★★</span>
+          <button onclick="speakCurrentExample()" class="w-9 h-9 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center font-bold shadow-sm transition" title="Beispielsatz anhören">
+            🔊
+          </button>
+        </div>
+      </div>
+
+      <!-- NEU: PHYSIKALISCHE SATZ-KLAMMER-SCHLEUDER (Macht deutsche Satzstruktur sofort sichtbar!) -->
+      <div class="mt-3.5 bg-slate-900 text-white rounded-2xl p-3.5 shadow-inner relative overflow-hidden">
+        <div class="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">
+          <span>⚡ Live-Satzklammer-Physik (Position 2 & Satzende)</span>
+          <button onclick="replaySlingAnimation()" class="text-sky-400 hover:underline">↻ Animation abspielen</button>
+        </div>
+        <div id="sentencePhysicsStage" class="text-sm sm:text-base font-bold leading-relaxed flex flex-wrap items-center gap-1.5 py-1">
+          <!-- Wird dynamisch mit Schleuder-Animation gefüllt -->
+        </div>
+      </div>
+
+      <!-- 1. DUAL-CODING (Animiertes Bild + Lokomotiven-Bedeutung) -->
+      <div class="mt-3.5 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center bg-slate-50 rounded-2xl p-3 border border-slate-200/70">
+        <div id="dualCodingCanvas" class="sm:col-span-3 w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0">
+          <!-- Animierte SVG Zeichnung -->
+        </div>
+        <div class="sm:col-span-9">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 text-blue-800">Dual-Coding Bild-Anker</span>
+            <span id="compassClockBadge" class="text-[10px] font-bold text-slate-500">🕛 1 Uhr (Kontakt)</span>
+          </div>
+          <h3 id="inspectorMeaningTitle" class="text-sm sm:text-base font-extrabold text-slate-900 mt-1">
+            An einem Ort / Ziel eintreffen
+          </h3>
+          <p id="inspectorLocomotiveRule" class="text-xs text-slate-600 mt-0.5">
+            🚂 <b>Lokomotive an-</b>: Bringt das Basisverb direkt an einen Zielpunkt.
+          </p>
+        </div>
+      </div>
+
+      <!-- 3. KONTEXTUELLES CHUNKING (Wortbausteine mit fester Präposition) -->
+      <div class="mt-3.5">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">
+            🧩 Feste Sprach-Chunks (Immer als Block zusammen merken!)
+          </span>
+        </div>
+        <div id="chunkButtonsRow" class="flex flex-wrap gap-2">
+          <!-- Dynamische Chunk-Pills -->
+        </div>
+      </div>
+
+      <!-- 4. PRESS & HOLD MUTTERSPRACHEN-ANKER (Anti-Faulheits-Modus) -->
+      <div class="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+        <div id="nativeTranslationBox" class="flex-1 rounded-2xl bg-amber-50/90 border border-amber-200 px-3.5 py-2.5 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800">
+              👁️ Muttersprachen-Anker
+            </span>
+            <label class="flex items-center gap-1 text-[10px] font-bold text-amber-900 cursor-pointer">
+              <input type="checkbox" id="alwaysShowNativeToggle" onchange="toggleAlwaysNative(this.checked)" checked class="rounded text-amber-600" />
+              Immer sichtbar
+            </label>
+          </div>
+          <p id="nativeAnchorOutput" class="text-sm font-extrabold text-slate-900 mt-0.5 arabic-text">
+            يَصِل إلى مكان (الدمج: ankommen + in)
+          </p>
+        </div>
+
+        <button
+          onmousedown="peekNative(true)"
+          onmouseup="peekNative(false)"
+          onmouseleave="peekNative(false)"
+          ontouchstart="peekNative(true)"
+          ontouchend="peekNative(false)"
+          class="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 active:bg-amber-200 text-slate-800 font-extrabold text-xs shrink-0 transition flex items-center justify-center gap-1.5"
+          title="Gedrückt halten, wenn 'Immer sichtbar' deaktiviert ist">
+          <span>👁️</span>
+          <span>Halten für Hilfe</span>
+        </button>
+      </div>
+
+      <!-- SCHNELL-NAVIGATION DURCH DIE 50 VERBEN (Vorheriges / Nächstes Verb) -->
+      <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+        <button onclick="stepVerb(-1)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-extrabold text-slate-700 transition">
+          ← Vorheriges Verb
+        </button>
+        <button onclick="toggleVerbDrawer()" class="text-xs font-extrabold text-blue-600 hover:underline">
+          Verb <span id="verbIndexIndicator">1</span> von 50 (Alle zeigen)
+        </button>
+        <button onclick="stepVerb(1)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-extrabold text-slate-700 transition">
+          Nächstes Verb →
+        </button>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- BOTTOM QUICK-BAR: Horizontales Karussell aller 50 Basisverben         -->
+  <!-- ===================================================================== -->
+  <footer class="w-full max-w-7xl mx-auto px-3 sm:px-6 pb-3 pt-1 z-30">
+    <div class="bg-white/90 backdrop-blur rounded-2xl border border-slate-200/90 p-2 shadow-sm flex items-center gap-2">
+      <span class="text-[11px] font-extrabold text-slate-500 px-2 shrink-0">⚡ Top 50:</span>
+      <div id="bottomVerbStrip" class="flex items-center gap-1.5 overflow-x-auto pb-1">
+        <!-- Alle 50 Verben als klickbare Pillen -->
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- DRAWER MODAL: ALLE 50 BASISVERBEN NACH WORTFELDERN & SUCHE            -->
+  <!-- ===================================================================== -->
+  <div id="verbCatalogDrawer" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6">
+    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-extrabold text-slate-900">🪐 Die 50 wichtigsten deutschen Basisverben</h2>
+          <p class="text-xs text-slate-500">Wähle ein Basisverb, um seinen Präfix-Orbit zu laden (inkl. 5-Sterne-Zwiebelfilter).</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input
+            type="text"
+            id="verbSearchInput"
+            oninput="renderVerbCatalogGrid(this.value)"
+            placeholder="Verb suchen (z.B. setzen, ziehen, halten)..."
+            class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 w-56 sm:w-64"
+          />
+          <button onclick="toggleVerbDrawer()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold">✕</button>
+        </div>
+      </div>
+
+      <div id="verbCatalogGrid" class="p-4 sm:p-5 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+        <!-- Dynamisch generierte 50 Verbkarten -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: DER 360°-PRÄFIX-KOMPASS & DIE ZUG-METAPHER                     -->
+  <!-- ===================================================================== -->
+  <div id="compassModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between mb-3">
+        <span class="px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 text-xs font-extrabold">Gehirngerechte System-Logik</span>
+        <button onclick="toggleCompassModal()" class="text-slate-400 hover:text-slate-700 font-extrabold">✕</button>
+      </div>
+      <h3 class="text-lg font-extrabold text-slate-900 mb-2">🧭 Der 360°-Präfix-Kompass</h3>
+      <p class="text-xs text-slate-600 leading-relaxed mb-3">
+        Damit dein Gehirn niemals überfordert wird, hat jede Vorsilbe bei <b>allen 50 Verben immer denselben festen Platz auf der Uhr</b>:
+      </p>
+      <div class="space-y-2 text-xs bg-slate-50 p-3.5 rounded-2xl border border-slate-200 mb-4">
+        <div>🕛 <b>12 bis 2 Uhr (Norden – Kontakt & Öffnung):</b> <span class="font-bold text-rose-600">an-, auf-</span> (ankommen, aufmachen)</div>
+        <div>🕒 <b>3 bis 4 Uhr (Osten – Nach vorn & hinein):</b> <span class="font-bold text-amber-600">ein-, vor-, weiter-, durch-</span> (einsetzen, vorhaben)</div>
+        <div>🕕 <b>5 bis 7 Uhr (Süden – Schwerkraft, Trennung & Ende):</b> <span class="font-bold text-sky-600">ab-, aus-, weg-, nach-</span> (absetzen, ausmachen)</div>
+        <div>🕘 <b>8 bis 10 Uhr (Westen – Gemeinschaft & Rückkehr):</b> <span class="font-bold text-emerald-600">mit-, zurück-, zu-, um-</span> (mitkommen, umsetzen)</div>
+        <div>🔒 <b>Innerer Magnet-Ring (Untrennbar!):</b> <span class="font-bold text-indigo-600">ver-, be-, ent-, er-</span> kleben fest am Verb und fliegen nie ans Satzende!</div>
+      </div>
+      <button onclick="toggleCompassModal()" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs">
+        Verstanden – Zurück zum Orbit
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. KOMPASS-GEOMETRIE & FARB-SYSTEM FÜR ALLE DEUTSCHEN PRÄFIXE
+    // =========================================================================
+    const PREFIX_COMPASS = {
+      "an":     { angle: 15,  clock: "12:30 Uhr (Kontakt)",    color: "#ff8a8a", sep: true,  svg: "arrive",   rule: "Kontakt herstellen oder am Zielpunkt ankommen." },
+      "auf":    { angle: 50,  clock: "2 Uhr (Öffnen/Hoch)",    color: "#ffa69e", sep: true,  svg: "up_open",  rule: "Nach oben bewegen, öffnen oder starten." },
+      "ein":    { angle: 85,  clock: "3 Uhr (Hinein)",         color: "#ffd166", sep: true,  svg: "enter",    rule: "Von außen nach innen in ein System bringen." },
+      "vor":    { angle: 115, clock: "4 Uhr (Vorwärts/Plan)",  color: "#f9c74f", sep: true,  svg: "forward",  rule: "Nach vorne zeigen oder zeitlich vorausplanen." },
+      "durch":  { angle: 140, clock: "4:30 Uhr (Durchbruch)",  color: "#f8961e", sep: true,  svg: "forward",  rule: "Durch ein Hindernis bis zum Ende gehen." },
+      "ab":     { angle: 175, clock: "6 Uhr (Abzug/Runter)",   color: "#4cc9f0", sep: true,  svg: "down_off", rule: "Nach unten abnehmen, reduzieren oder abtrennen." },
+      "aus":    { angle: 205, clock: "7 Uhr (Raus/Ende)",      color: "#4895ef", sep: true,  svg: "out_exit", rule: "Nach draußen bringen, beenden oder pausieren." },
+      "nach":   { angle: 235, clock: "8 Uhr (Folgen/Prüfen)",  color: "#90be6d", sep: true,  svg: "return",   rule: "Hinterhergehen, kontrollieren oder wiederholen." },
+      "zurück": { angle: 265, clock: "9 Uhr (Rückkehr)",       color: "#43aa8b", sep: true,  svg: "return",   rule: "Zurück zum ursprünglichen Startpunkt." },
+      "mit":    { angle: 295, clock: "10 Uhr (Gemeinsam)",     color: "#7ae582", sep: true,  svg: "together", rule: "Gemeinsam mit anderen in dieselbe Richtung." },
+      "zu":     { angle: 325, clock: "11 Uhr (Schließen/Ziel)",color: "#52b788", sep: true,  svg: "enter",    rule: "Schließen oder gezielt auf jemanden richten." },
+      "um":     { angle: 345, clock: "11:30 Uhr (Wechsel)",    color: "#72efdd", sep: true,  svg: "transform",rule: "Verändern, transferieren oder in die Tat umsetzen." },
+      "weiter": { angle: 100, clock: "3:30 Uhr (Fortsetzen)",  color: "#f9c74f", sep: true,  svg: "forward",  rule: "Ohne Stopp fortsetzen." },
+      "weg":    { angle: 190, clock: "6:30 Uhr (Entfernen)",   color: "#38bdf8", sep: true,  svg: "out_exit", rule: "Komplett von diesem Ort entfernen." },
+      "teil":   { angle: 280, clock: "9:30 Uhr (Teilhabe)",    color: "#80ed99", sep: true,  svg: "together", rule: "Als Teil einer Gruppe aktiv mitmachen." },
+      "vorbei": { angle: 220, clock: "7:30 Uhr (Kurzer Stopp)",color: "#f9c74f", sep: true,  svg: "arrive",   rule: "Auf dem Weg kurz bei jemandem Halt machen." },
+      "rein":   { angle: 75,  clock: "2:30 Uhr (Hinein)",      color: "#ffd166", sep: true,  svg: "enter",    rule: "Nach drinnen ins Zimmer kommen." },
+      // Untrennbare Präfixe (Innerer Orbit-Ring!)
+      "ver":    { angle: 40,  clock: "Innenring (Veränderung)",color: "#c77dff", sep: false, svg: "transform",rule: "Untrennbar: Zustand komplett verändern oder intensivieren." },
+      "be":     { angle: 135, clock: "Innenring (Fokus-Objekt)",color: "#b5179e",sep: false, svg: "arrive",   rule: "Untrennbar: Macht das Verb direkt zielgerichtet auf ein Objekt." },
+      "ent":    { angle: 225, clock: "Innenring (Entfernung)", color: "#9d4edd", sep: false, svg: "out_exit", rule: "Untrennbar: Etwas wegnehmen, starten oder entdecken." },
+      "er":     { angle: 315, clock: "Innenring (Ergebnis)",   color: "#a855f7", sep: false, svg: "up_open",  rule: "Untrennbar: Ein Ziel oder Resultat erfolgreich erreichen." }
+    };
+
+    // =========================================================================
+    // 2. ALLE 50 DEUTSCHEN BASISVERBEN (Mit Wortfeld, Übersetzung & Präfix-Ästen)
+    // =========================================================================
+    // Format pro Branch: [prefix, stars, onionLayer, chunkLabel, sentenceMid, sentenceObj, meaningDe, ar, en, tr]
+    const RAW_50_VERBS = [
+      // CLUSTER 1: BEWEGUNG & RICHTUNG (1-10)
+      { id: "kommen", num: 1, level: "A1", cluster: "Bewegung", ar: "يأتي", en: "to come", tr: "gelmek", stem3: "kommt", branches: [
+        ["an", 5, 1, "ankommen + in (Ort)", "Mein Zug", "pünktlich in Berlin", "Ein Reiseziel erreichen", "يَصِل إلى مكان", "to arrive in", "bir yere varmak"],
+        ["mit", 5, 1, "mitkommen + ins / zu", "Ich", "heute Abend mit dir ins Kino", "Jemanden begleiten", "يأتي مع / يرافق", "to come along", "birlikte gelmek"],
+        ["zurück", 5, 1, "zurückkommen + aus", "Wann", "du aus dem Urlaub", "Wieder zum Ausgangsort kehren", "يَعود من", "to come back", "geri dönmek"],
+        ["vorbei", 4, 2, "vorbeikommen + bei", "Er", "heute kurz bei mir zu Hause", "Kurz jemanden besuchen", "يَمُرّ على شخص لزيارة قصيرة", "to drop by", "kısa uğramak"],
+        ["rein", 4, 2, "reinkommen + in", "Bitte", "doch in die warme Stube", "Hereintreten", "يَدخُل إلى الداخل", "to come inside", "içeri girmek"],
+        ["aus", 3, 3, "auskommen + mit", "Ich", "sehr gut mit meinem Gehalt", "Genug haben / sich gut verstehen", "يَتفاهم مع / يكفيه المال", "to get by / get along", "geçinmek / yetinmek"],
+        ["be", 5, 2, "bekommen + Geschenk", "Sie", "morgen ihren neuen Arbeitsvertrag", "Etwas erhalten (Untrennbar!)", "يَحصُل على / يَستلِم", "to receive / get", "almak / لا ينفصل"]
+      ]},
+      { id: "gehen", num: 2, level: "A1", cluster: "Bewegung", ar: "يذهب", en: "to go", tr: "gitmek", stem3: "geht", branches: [
+        ["aus", 5, 1, "ausgehen + abends", "Wir", "am Freitagabend zusammen", "Abends zum Feiern/Essen rausgehen", "يَخرُج للتنزه أو السهر", "to go out", "dışarı çıkmak"],
+        ["mit", 5, 1, "mitgehen + zu", "Meine Schwester", "heute zum Arzttermin", "Zur Unterstützung begleiten", "يَذهَب مع", "to go along", "birlikte gitmek"],
+        ["weg", 5, 1, "weggehen + von hier", "Der Fleck", "leider beim Waschen nicht", "Verschwinden oder den Ort verlassen", "يَذهَب بعيداً / يَزول", "to go away / come off", "gitmek / çıkmak"],
+        ["weiter", 4, 2, "weitergehen + jetzt", "Das Leben", "auch nach einem Fehler", "Fortfahren ohne stehenzubleiben", "يَستَمِرّ / يُواصِل المشي", "to go on / continue", "devam etmek"],
+        ["um", 4, 2, "umgehen + mit (Problem)", "Er", "sehr ruhig mit großem Stress", "Einen Weg finden, etwas zu behandeln", "يَتعامَل مع مشكلة", "to deal with / handle", "başa çıkmak"],
+        ["be", 3, 3, "begehen + Fehler", "Man", "unter Zeitdruck leicht einen Fehler", "Einen Fehler oder eine Tat machen", "يَرتَكِب (خطأ)", "to commit (a mistake)", "hata yapmak"]
+      ]},
+      { id: "fahren", num: 3, level: "A1", cluster: "Bewegung", ar: "يقود / يسافر", en: "to drive / ride", tr: "sürmek / gitmek", stem3: "fährt", branches: [
+        ["ab", 5, 1, "abfahren + von Gleis", "Der ICE", "in fünf Minuten von Gleis 4", "Die Fahrt starten (Zug/Bus)", "يَنطَلِق القطار أو الحافلة", "to depart / leave", "حرکت etmek / kalkmak"],
+        ["mit", 5, 1, "mitfahren + im Auto", "Mein Kollege", "jeden Morgen bei mir im Auto", "Im selben Fahrzeug reisen", "يَركَب مع شخص", "to ride along", "birlikte yolculuk etmek"],
+        ["weiter", 5, 1, "weiterfahren + nach", "Nach der Pause", "der Bus direkt nach München", "Die Fahrt fortsetzen", "يُواصِل القيادة", "to drive on", "sürmeye devam etmek"],
+        ["zurück", 4, 2, "zurückfahren + nach Hause", "Wir", "erst am Sonntagabend ans Meer", "Mit dem Fahrzeug heimkehren", "يَعود بالسيارة", "to drive back", "geri dönmek"],
+        ["er", 4, 2, "erfahren + Neuigkeit", "Ich", "gerade erst von deinem neuen Job", "Eine Information hören/lernen", "يَعلَم بـ / يَكتشِف خبراً", "to find out / learn", "öğrenmek / haberi olmak"],
+        ["aus", 3, 3, "ausfahren + Paket", "Der Bote", "heute noch hundert Pakete", "Waren an Kunden ausliefern", "يُوزّع الطلبات بالسيارة", "to deliver / take out", "dağıtıma çıkmak"]
+      ]},
+      { id: "laufen", num: 4, level: "A1", cluster: "Bewegung", ar: "يركض / يمشي", en: "to run / walk", tr: "koşmak / yürümek", stem3: "läuft", branches: [
+        ["ab", 5, 1, "ablaufen + Datum / Frist", "Mein Reisepass", "leider nächsten Monat", "Gültigkeit verlieren (Ausweis/Vertrag)", "تَنتَهي صلاحيته", "to expire", "süresi dolmak"],
+        ["weg", 5, 1, "weglaufen + vor", "Der kleine Hund", "im Park plötzlich", "Schnell davonrennen", "يَهرُب راكضاً", "to run away", "kaçmak"],
+        ["weiter", 5, 1, "weiterlaufen + trotz", "Der Film", "nach der Werbung sofort", "Nicht stoppen, weiterfunktionieren", "يَستَمِرّ في العرض أو الجري", "to keep running", "devam etmek"],
+        ["aus", 4, 2, "auslaufen + Flüssigkeit", "Vorsicht, die Milch", "gerade im Kühlschrank", "Flüssigkeit tritt aus einem Behälter aus", "يَتَسرّب السائل", "to leak out", "sızmak / akmak"],
+        ["ver", 4, 2, "sich verlaufen + in", "Der Tourist", "ohne Handy in der fremden Stadt", "Den richtigen Weg verlieren", "يَتيه في الطريق", "to get lost walking", "yolunu kaybetmek"]
+      ]},
+      { id: "steigen", num: 5, level: "A1", cluster: "Bewegung", ar: "يصعد", en: "to climb / rise", tr: "binmek / yükselmek", stem3: "steigt", branches: [
+        ["ein", 5, 1, "einsteigen + in (Bus/Zug)", "Bitte", "jetzt schnell in den Zug", "Ein Fahrzeug betreten", "يَصعَد إلى الحافلة أو القطار", "to board / get in", "binmek"],
+        ["aus", 5, 1, "aussteigen + an (Haltestelle)", "Wir", "schon an der nächsten Station", "Ein Fahrzeug verlassen", "يَنزِل من المواصلات", "to get off / exit", "inmek"],
+        ["um", 5, 1, "umsteigen + in (Linie)", "Du", "am Hauptbahnhof in die U-Bahn", "Das Verkehrsmittel wechseln", "يُبدِّل المواصلات", "to transfer trains/buses", "aktarma yapmak"],
+        ["auf", 4, 2, "aufsteigen + beruflich", "Sie", "in der Firma zur Chefin", "Eine höhere Position erreichen", "يَرتَقي وظيفياً", "to be promoted / rise", "terfi etmek / yükselmek"]
+      ]},
+      { id: "fallen", num: 6, level: "A1", cluster: "Bewegung", ar: "يسقط", en: "to fall", tr: "düşmek", stem3: "fällt", branches: [
+        ["aus", 5, 1, "ausfallen + Termin / Zug", "Der Unterricht", "heute wegen Krankheit komplett", "Nicht stattfinden / gestrichen werden", "يُلتَغى (درس أو قطار)", "to be cancelled", "iptal olmak"],
+        ["auf", 5, 1, "auffallen + positiv", "Sein neues Hemd", "im Büro sofort", "Besondere Aufmerksamkeit wecken", "يَلفِت الانتباه", "to stand out / be noticed", "dikkat çekmek"],
+        ["ein", 5, 1, "einfallen + Idee / Name", "Mir", "gerade sein Name leider nicht", "Plötzlich wieder ins Gedächtnis kommen", "يَخطُر على البال", "to come to mind", "aklına gelmek"],
+        ["ab", 4, 2, "abfallen + Müll / Laub", "Im Herbst", "die bunten Blätter von den Bäumen", "Nach unten loslösen", "يَتساقَط للأسفل", "to fall off", "dökülmek"],
+        ["ge", 4, 2, "gefallen + mir (Dativ)", "Diese neue Wohnung", "meiner Familie extrem gut", "Schön oder angenehm finden", "يُعجِب", "to please / like", "hoşuna gitmek"]
+      ]},
+      { id: "fliegen", num: 7, level: "A1", cluster: "Bewegung", ar: "يطير", en: "to fly", tr: "uçmak", stem3: "fliegt", branches: [
+        ["ab", 5, 1, "abfliegen + um (Uhrzeit)", "Unser Flugzeug", "pünktlich um 9 Uhr", "Mit dem Flugzeug starten", "تُقلِع الطائرة", "to take off", "havalanmak"],
+        ["weg", 5, 1, "wegfliegen + im Winter", "Viele Vögel", "im kalten Winter in den Süden", "Mit dem Flugzeug/Flügeln verreisen", "يَطير بعيداً / يُسافر جواً", "to fly away", "uçup gitmek"],
+        ["zurück", 4, 2, "zurückfliegen + nach", "Am Montag", "die Delegation wieder nach Berlin", "Den Rückflug antreten", "يَعود بالطائرة", "to fly back", "uçakla geri dönmek"],
+        ["aus", 3, 3, "ausfliegen + Patienten", "Das Rettungsteam", "den Verletzten sofort", "Per Flugzeug aus einem Gebiet holen", "يَنقُل جواً للخارج", "to airlift out", "uçakla tahliye etmek"]
+      ]},
+      { id: "ziehen", num: 8, level: "A2", cluster: "Bewegung", ar: "يسحب / ينتقل", en: "to pull / move", tr: "çekmek / taşınmak", stem3: "zieht", branches: [
+        ["um", 5, 1, "umziehen + in (Stadt)", "Meine Familie", "nächsten Monat nach Hamburg", "Die Wohnung wechseln", "يَنتَقِل إلى سكن جديد", "to move house", "taşınmak"],
+        ["an", 5, 1, "anziehen + Jacke", "Er", "wegen der Kälte seine dicke Jacke", "Kleidung anlegen", "يَرتَدي الملابس", "to put on clothes", "giymek"],
+        ["aus", 5, 1, "ausziehen + Schuhe", "Der Gast", "an der Haustür die Schuhe", "Kleidung ablegen / Wohnung verlassen", "يَخلَع الملابس أو يُغادر السكن", "to take off / move out", "çıkarmak / evden çıkmak"],
+        ["ein", 4, 2, "einziehen + in Wohnung", "Wir", "am Samstag in das neue Haus", "In eine neue Wohnung starten", "يَسكُن في بيت جديد", "to move in", "yeni eve yerleşmek"],
+        ["ab", 4, 2, "abziehen + Betrag", "Die Kasse", "den Rabatt direkt vom Preis", "Weniger machen / subtrahieren", "يَخصِم مبلغاً", "to deduct / subtract", "indirmek / çıkarmak"],
+        ["be", 3, 3, "sich beziehen + auf", "Meine Frage", "direkt auf Ihren letzten Brief", "Inhaltlich mit etwas verknüpfen", "يَستَنِد إلى / يَتعلّق بـ", "to refer to", "atıfta bulunmak"]
+      ]},
+      { id: "bringen", num: 9, level: "A1", cluster: "Bewegung", ar: "يجلب / يوصل", en: "to bring", tr: "getirmek", stem3: "bringt", branches: [
+        ["mit", 5, 1, "mitbringen + zur Party", "Ich", "heute Abend frischen Kuchen zur Feier", "Etwas für andere dabeihaben", "يُحضِر معه", "to bring along", "برaberinde getirmek"],
+        ["zurück", 5, 1, "zurückbringen + Buch", "Er", "das geliehene Buch in die Bibliothek", "Wieder an den Besitzer geben", "يُعيد الشيء لمكانه", "to bring back / return", "geri getirmek"],
+        ["weg", 5, 1, "wegbringen + Müll", "Kannst du", "bitte kurz den vollen Müll", "Etwas an den Entsorgungsort tragen", "يأخُذ القمامة بعيداً", "to take away / dispose", "götürüp atmak"],
+        ["um", 4, 2, "umbringen + Geduld", "Dieser langsame Computer", "mich noch um den Verstand", "Zerstören / töten (auch bildlich)", "يَقتُل / يُفقِد الأعصاب", "to kill / drive crazy", "öldürmek / çıldırtmak"],
+        ["bei", 4, 2, "beibringen + Sprache", "Sie", "ihren Kindern spielerisch Deutsch", "Jemandem eine Fähigkeit lehren", "يُعلِّم مهارة لشخص", "to teach someone", "öğretmek"]
+      ]},
+      { id: "folgen", num: 10, level: "A2", cluster: "Bewegung", ar: "يتبع", en: "to follow", tr: "takip etmek", stem3: "folgt", branches: [
+        ["nach", 5, 1, "nachfolgen + im Amt", "Die junge Ärztin", "dem Chef im Sommer", "Später nachkommen oder den Platz übernehmen", "يَخلُف شخصاً أو يَلحَق به", "to succeed / follow after", "yerine geçmek / arkadan gelmek"],
+        ["be", 5, 1, "befolgen + Rat / Regel", "Der Patient", "den Rat des Arztes sehr genau", "Eine Regel oder Empfehlung einhalten", "يَتَّبِع النصيحة أو القواعد", "to obey / follow advice", "uymak (kurala, tavsiyeye)"],
+        ["ver", 5, 1, "verfolgen + Ziel / Plan", "Wir", "mit dieser App ein klares Ziel", "Hartnäckig an einem Ziel dranbleiben", "يُتابِع هدفاً بإصرار", "to pursue a goal", "peşinden gitmek / izlemek"],
+        ["er", 4, 2, "erfolgen + Antwort", "Die Zahlung", "automatisch am Monatsende", "Stattfinden / passieren (formell)", "يَتِمّ / يَحدُث رسمياً", "to take place / occur", "gerçekleşmek"]
+      ]},
+
+      // CLUSTER 2: POSITION & RAUM (11-18)
+      { id: "setzen", num: 11, level: "A1", cluster: "Position", ar: "يضع / يجلس", en: "to set / put", tr: "oturtmak / koymak", stem3: "setzt", branches: [
+        ["ab", 5, 1, "absetzen + Brille / Steuer", "Er", "Den Laptop von der Steuer", "Brille abnehmen ODER Kosten steuerlich sparen", "يَخلَع النظارة / يَخصِم من الضرائب", "to take off / deduct tax", "çıkarmak / vergiden düşmek"],
+        ["ein", 5, 1, "sich einsetzen + für", "Sie", "sich mutig für ihre Kollegen", "Aktiv für ein Ziel kämpfen / verwenden", "يُناضِل من أجل / يَستخدِم", "to stand up for / deploy", "چaba göstermek / kullanmak"],
+        ["um", 5, 1, "umsetzen + Idee / Plan", "Das Team", "die neue Idee sofort in die Tat", "Einen Plan in die Realität verwandeln", "يُطبِّق على أرض الواقع", "to implement", "hayata geçirmek"],
+        ["durch", 4, 2, "sich durchsetzen + gegen", "Qualität", "sich am Ende immer auf dem Markt", "Gegen Widerstand gewinnen", "يَفرِض نفسه / يَنتصِر", "to prevail / assert", "üstün gelmek"],
+        ["aus", 3, 3, "aussetzen + beim Sport", "Er", "wegen der Verletzung eine Woche", "Eine Pause machen / überspringen", "يَتوقّف مؤقتاً لجولة", "to sit out / pause", "ara vermek"],
+        ["be", 4, 2, "besetzen + Stuhl / Stelle", "Die Firma", "die freie Stelle mit einer Expertin", "Einen Platz oder Job vergeben", "يَحجِز مقعداً / يَملأ وظيفة", "to occupy / fill a post", "doldurmak / tutmak"]
+      ]},
+      { id: "stellen", num: 12, level: "A1", cluster: "Position", ar: "يضع عمودياً", en: "to place / put", tr: "dik koymak", stem3: "stellt", branches: [
+        ["vor", 5, 1, "sich vorstellen + bei", "Ich", "mich heute beim neuen Team", "Seinen Namen sagen ODER fantasieren", "يُعرِّف بنفسه / يَتخيَّل", "to introduce / imagine", "tanıtmak / hayal etmek"],
+        ["ein", 5, 1, "einstellen + Personal", "Unsere Firma", "diesen Monat fünf neue Leute", "Mitarbeiter engagieren / Gerät justieren", "يُوظِّف عمالاً / يَضبُط جهازاً", "to hire / adjust", "işe almak / ayarlamak"],
+        ["aus", 5, 1, "ausstellen + Ausweis", "Das Amt", "mir heute einen neuen Pass", "Ein Dokument offiziell drucken/geben", "يُصدِر وثيقة رسمية", "to issue a document", "belge düzenlemek"],
+        ["ab", 4, 2, "abstellen + Motor / Auto", "Bitte", "Sie das Fahrrad vor dem Haus", "Hinstellen oder ein Gerät ausschalten", "يَركِن المركبة / يُوقِف المحرك", "to park / switch off", "park etmek / kapatmak"],
+        ["be", 5, 2, "bestellen + im Internet", "Wir", "das Abendessen heute online", "Etwas zum Kauf ordern", "يَطلُب (طعاماً أو بضاعة)", "to order", "sipariş vermek"],
+        ["er", 4, 3, "erstellen + Konto / Seite", "Der Nutzer", "in zwei Minuten ein neues Profil", "Etwas digital oder schriftlich neu bauen", "يُنشِئ (حساباً أو ملفاً)", "to create / generate", "oluşturmak"]
+      ]},
+      { id: "legen", num: 13, level: "A1", cluster: "Position", ar: "يضع أفقياً", en: "to lay / put flat", tr: "yatay koymak", stem3: "legt", branches: [
+        ["ab", 5, 1, "ablegen + Prüfung / Jacke", "Morgen", "sie ihre wichtige B2-Prüfung", "Eine Prüfung machen oder Kleidung weglegen", "يَجتاز امتحاناً / يَخلَع معطفاً", "to take an exam / take off", "sınava girmek / bırakmak"],
+        ["fest", 5, 1, "festlegen + Termin", "Wir", "heute gemeinsam das genaue Datum", "Verbindlich bestimmen", "يُحدِّد موعداً بشكل رسمي", "to set / determine", "belirlemek"],
+        ["vor", 5, 1, "vorlegen + Ausweis", "Der Kunde", "an der Bank seinen Pass", "Ein Dokument zur Kontrolle zeigen", "يُبرِز الهوية أو الوثيقة", "to present / show", "ibraz etmek / göstermek"],
+        ["an", 4, 2, "anlegen + Geld", "Er", "sein Erspartes sicher bei der Bank", "Geld investieren", "يَستثمِر المال", "to invest money", "yatırım yapmak"],
+        ["über", 4, 2, "überlegen + kurz", "Ich", "mir das Angebot bis morgen", "Gründlich über etwas nachdenken", "يُفكِّر ملياً في الأمر", "to think over / consider", "düşünmek / taşınmak"]
+      ]},
+      { id: "stehen", num: 14, level: "A1", cluster: "Position", ar: "يقف", en: "to stand", tr: "durmak", stem3: "steht", branches: [
+        ["auf", 5, 1, "aufstehen + morgens", "Ich", "jeden Werktag um sechs Uhr", "Das Bett verlassen / sich erheben", "يَستيقِظ وينهض من السرير", "to get up", "kalkmak"],
+        ["ver", 5, 1, "verstehen + Frage", "Er", "die deutsche Grammatik jetzt perfekt", "Den Sinn begreifen (Untrennbar!)", "يَفهَم", "to understand", "anlamak"],
+        ["be", 5, 1, "bestehen + Prüfung", "Sie", "den schweren Sprachtest beim ersten Mal", "Eine Prüfung erfolgreich schaffen", "يَنجَح في الامتحان", "to pass an exam", "sınavı geçmek"],
+        ["ent", 4, 2, "entstehen + aus (Idee)", "Aus diesem Gespräch", "eine großartige neue App", "Neu wachsen oder sich entwickeln", "يَنشَأ / يَتَكوَّن", "to arise / emerge", "oluşmak / meydana gelmek"],
+        ["fest", 4, 2, "feststehen + Ergebnis", "Der Termin für das Fest", "seit heute endlich", "Sicher und unveränderbar sein", "يَكون مؤكداً وثابتاً", "to be certain / fixed", "kesinleşmek"]
+      ]},
+      { id: "sitzen", num: 15, level: "A1", cluster: "Position", ar: "يجلس", en: "to sit", tr: "oturmak", stem3: "sitzt", branches: [
+        ["be", 5, 1, "besitzen + Erfahrung", "Die Bewerberin", "viel Erfahrung in diesem Beruf", "Etwas als Eigentum haben", "يَملِك / يَمتلِك", "to own / possess", "sahip olmak"],
+        ["zusammen", 5, 1, "zusammensitzen + abends", "Wir", "nach der Arbeit noch gemütlich", "In einer Gruppe beieinander sitzen", "يَجلِسون معاً بودّ", "to sit together", "birlikte oturmak"],
+        ["fest", 4, 2, "festsitzen + im Stau", "Die Reisenden", "wegen des Schnees am Flughafen", "Nicht mehr weiterkommen", "يَعلَق في الازدحام", "to be stuck", "mahsur kalmak / sıkışmak"]
+      ]},
+      { id: "liegen", num: 16, level: "A1", cluster: "Position", ar: "يقع / يستلقي", en: "to lie / be located", tr: "yatmak / bulunmak", stem3: "liegt", branches: [
+        ["an", 5, 1, "liegen + an (Grund)", "Das Problem", "sicher nur an der schwachen Verbindung", "Die Ursache für etwas sein (Es liegt an...)", "يَرجِع السبب إلى...", "to be due to", "...-den kaynaklanmak"],
+        ["vor", 5, 1, "vorliegen + Ergebnis", "Alle Unterlagen", "dem Amt jetzt vollständig", "Fertig und griffbereit da sein", "يَكون متوفراً وجاهزاً", "to be available / present", "mevcut olmak"],
+        ["zurück", 4, 2, "zurückliegen + Zeit", "Dieser Urlaub", "schon wieder zwei Jahre", "In der Vergangenheit sein", "مضى عليه وقت", "to date back", "geride kalmak"]
+      ]},
+      { id: "hängen", num: 17, level: "A2", cluster: "Position", ar: "يعلق", en: "to hang", tr: "asmak / asılı durmak", stem3: "hängt", branches: [
+        ["ab", 5, 1, "abhängen + von (Faktor)", "Unser Erfolg", "stark von guter Teamarbeit", "Bedingt sein durch etwas", "يَعتمِد على...", "to depend on", "bağlı olmak"],
+        ["auf", 5, 1, "aufhängen + Jacke / Bild", "Er", "das neue Foto an die Wand", "Etwas oben befestigen", "يُعلِّق على الحائط", "to hang up", "asmak"],
+        ["zusammen", 4, 2, "zusammenhängen + mit", "Die Müdigkeit", "direkt mit dem Eisenmangel", "Eine Verbindung miteinander haben", "يَرتَبِط بـ", "to be connected with", "ilişkili olmak"]
+      ]},
+      { id: "stecken", num: 18, level: "A2", cluster: "Position", ar: "يدخل / يعلق", en: "to put in / be stuck", tr: "sokmak / takılmak", stem3: "steckt", branches: [
+        ["an", 5, 1, "anstecken + mit Erkältung", "Kollegen", "sich im Winter leicht mit Grippe", "Eine Krankheit übertragen", "يُعدي بالمرض", "to infect", "bulaştırmak"],
+        ["ein", 5, 1, "einstecken + Schlüssel", "Ich", "meinen Haustürschlüssel immer sofort", "In die Tasche tun / Kabel anschließen", "يَضَع في الجيب / يوصِل القابس", "to pocket / plug in", "cebine koymak / fişe takmak"],
+        ["fest", 4, 2, "feststecken + im Verkehr", "Der Bus", "leider mitten im dichten Verkehr", "Nicht vor und nicht zurück können", "يَعلَق في الزحام", "to be stuck in traffic", "trafikte sıkışmak"]
+      ]},
+
+      // CLUSTER 3: GEBEN, NEHMEN & HALTEN (19-26)
+      { id: "nehmen", num: 19, level: "A1", cluster: "Besitz", ar: "يأخذ", en: "to take", tr: "almak", stem3: "nimmt", branches: [
+        ["an", 5, 1, "annehmen + Angebot / Paket", "Ich", "deine Einladung zum Essen sehr gerne", "Akzeptieren oder vermuten", "يَقبَل (عرضاً أو طرداً)", "to accept", "kabul etmek"],
+        ["mit", 5, 1, "mitnehmen + Essen", "Wir", "den Kaffee heute im Becher", "Auf dem Weg bei sich tragen", "يأخُذ معه (سفري)", "to take along / takeaway", "yanına almak"],
+        ["ab", 5, 1, "abnehmen + Gewicht / Telefon", "Er", "durch Sport fünf Kilogramm", "Gewicht verlieren oder Telefonat annehmen", "يَنحَف / يَرُدّ على الهاتف", "to lose weight / pick up", "kilo vermek / telefonu açmak"],
+        ["teil", 4, 2, "teilnehmen + an (Kurs)", "Sie", "aktiv an der neuen Schulung", "Bei einer Veranstaltung mitmachen", "يُشارِك في دورة", "to participate in", "katılmak"],
+        ["zu", 4, 2, "zunehmen + im Urlaub", "Der Verkehr", "in der Stadt jedes Jahr", "Mehr werden / schwerer werden", "يَزداد / يَسمَن", "to increase / gain weight", "artmak / kilo almak"],
+        ["auf", 4, 3, "aufnehmen + Kredit / Video", "Das Handy", "das Gespräch in hoher Qualität", "Aufzeichnen oder empfangen", "يُسجِّل صوتاً أو فيديو", "to record / take in", "kaydetmek"]
+      ]},
+      { id: "geben", num: 20, level: "A1", cluster: "Besitz", ar: "يعطي", en: "to give", tr: "vermek", stem3: "gibt", branches: [
+        ["ab", 5, 1, "abgeben + Antrag / Paket", "Ich", "die Unterlagen heute beim Amt", "Offiziell einreichen oder überreichen", "يُسلِّم الوثائق رسمياً", "to hand in / submit", "teslim etmek"],
+        ["aus", 5, 1, "ausgeben + Geld für", "Er", "im Urlaub viel Geld für gutes Essen", "Geld bezahlen", "يُنفِق المال", "to spend money", "para harcamak"],
+        ["auf", 5, 1, "aufgeben + niemals", "Ein guter Schüler", "auch bei schweren Wörtern niemals", "Resignieren oder ein Paket versenden", "يَستسلِم / يُرسِل طرداً", "to give up", "pes etmek / vazgeçmek"],
+        ["zurück", 4, 2, "zurückgeben + Geld", "Die Bank", "dem Kunden die Gebühr", "Wieder an den Eigentümer aushändigen", "يُرجِع الشيء لصاحبه", "to give back", "geri vermek"],
+        ["an", 4, 2, "angeben + Adresse", "Bitte", "Sie im Formular Ihre Telefonnummer", "Informationen nennen (oder prahlen)", "يَذكُر معلومات في استمارة", "to state / provide info", "belirtmek"],
+        ["ver", 3, 3, "vergeben + Chance / Fehler", "Sie", "ihrem besten Freund den Fehler", "Verzeihen oder einen Auftrag zuteilen", "يُسامِح / يَمنَح", "to forgive / award", "affetmek"]
+      ]},
+      { id: "halten", num: 21, level: "A1", cluster: "Besitz", ar: "يمسك / يتوقف", en: "to hold / stop", tr: "tutmak / durmak", stem3: "hält", branches: [
+        ["an", 5, 1, "anhalten + an Ampel", "Das Auto", "rechtzeitig vor der roten Ampel", "Zum Stehen kommen (Fahrzeug)", "يَتوقَّف عند الإشارة", "to stop (vehicle)", "durmak"],
+        ["ein", 5, 1, "einhalten + Versprechen", "Wir", "den vereinbarten Termin ganz sicher", "Regeln oder Fristen befolgen", "يَلتزِم بالموعد أو الوعد", "to keep / comply with", "uymak / sözünü tutmak"],
+        ["aus", 5, 1, "aushalten + Schmerz / Lärm", "Niemand", "diesen lauten Baulärm lange", "Ertragen / durchstehen", "يَتحمَّل (الألم أو الضجيج)", "to endure / stand", "dayanmak / katlanmak"],
+        ["vor", 4, 2, "sich unterhalten + über", "Die Gäste", "sich den ganzen Abend gut", "Ein nettes Gespräch führen", "يَتحدَّث ويتسامر", "to converse / chat", "sohbet etmek"],
+        ["er", 5, 2, "erhalten + Brief / Lohn", "Sie", "heute eine wichtige E-Mail vom Amt", "Etwas bekommen (formell)", "يَستلِم / يَحصُل على", "to receive", "teslim almak"],
+        ["be", 4, 3, "behalten + Quittung", "Bitte", "Sie den Kassenbon für die Garantie", "Nicht weggeben, bei sich lassen", "يَحتفِظ بالإيصال", "to keep", "saklamak"]
+      ]},
+      { id: "bekommen", num: 22, level: "A1", cluster: "Besitz", ar: "يحصل على", en: "to get / receive", tr: "almak / edinmek", stem3: "bekommt", branches: [
+        ["mit", 5, 1, "mitbekommen + Nachricht", "Ich", "von dem Streit im Büro gar nichts", "Bemerken oder zufällig hören", "يُلاحِظ / يَسمَع بالصدفة", "to notice / catch", "fark etmek / duymak"],
+        ["hin", 5, 1, "hinbekommen + Aufgabe", "Du", "diese schwere Prüfung ganz sicher", "Erfolgreich schaffen / reparieren", "يَنجَح في إنجاز أمر صعب", "to manage / pull off", "becermek / halletmek"],
+        ["zurück", 4, 2, "zurückbekommen + Kaution", "Der Mieter", "seine volle Kaution vom Vermieter", "Sein Eigentum wiedererhalten", "يَستعِيد ماله", "to get back", "geri almak"]
+      ]},
+      { id: "holen", num: 23, level: "A1", cluster: "Besitz", ar: "يجلب / يحضر", en: "to fetch / get", tr: "gidip almak", stem3: "holt", branches: [
+        ["ab", 5, 1, "abholen + vom Bahnhof", "Ich", "dich um fünf Uhr am Bahnhof", "Jemanden oder ein Paket an einem Ort abholen", "يَذهَب لاصطحاب شخص أو طرد", "to pick up", "gidip almak / karşılamak"],
+        ["nach", 5, 1, "nachholen + Schlaf / Test", "Er", "die verpasste Prüfung nächste Woche", "Etwas Verpasstes später erledigen", "يُعوِّض ما فاته لاحقاً", "to make up for / catch up", "telafi etmek"],
+        ["sich er", 4, 2, "sich erholen + von Arbeit", "Im Urlaub", "sie sich gut vom langen Stress", "Neue Kraft sammeln (Untrennbar!)", "يَستجِمّ ويَرتاح من التعب", "to recover / relax", "dinlenmek / iyileşmek"]
+      ]},
+      { id: "tragen", num: 24, level: "A2", cluster: "Besitz", ar: "يحمل / يرتدي", en: "to carry / wear", tr: "taşımak / giymek", stem3: "trägt", branches: [
+        ["ein", 5, 1, "eintragen + in Liste", "Die Sekretärin", "den Termin in den Kalender", "In ein Dokument/System schreiben", "يُسجِّل اسماً في القائمة", "to enter / register", "kaydetmek / yazmak"],
+        ["bei", 5, 1, "beitragen + zu (Erfolg)", "Jeder", "mit seiner Arbeit zum Erfolg", "Einen positiven Teil leisten", "يُساهِم في النجاح", "to contribute to", "katkıda bulunmak"],
+        ["be", 4, 2, "betragen + Kosten", "Die monatliche Miete", "genau achthundert Euro", "Eine bestimmte Summe ausmachen", "يَبلُغ المبلغ...", "to amount to", "tutmak (miktar)"],
+        ["er", 4, 2, "ertragen + Hitze", "Man", "diese extreme Hitze kaum ohne Wasser", "Geduldig aushalten", "يَتحمَّل بصبر", "to bear / endure", "تحمل etmek / katlanmak"]
+      ]},
+      { id: "greifen", num: 25, level: "B1", cluster: "Besitz", ar: "يمسك", en: "to grasp / reach", tr: "kavramak / uzanmak", stem3: "greift", branches: [
+        ["an", 5, 1, "angreifen + Problem", "Das Team", "das neue Projekt mit viel Energie", "Attackieren oder aktiv anpacken", "يُهاجِم / يَبدأ بقوة", "to attack / tackle", "saldırmak / el atmak"],
+        ["ein", 5, 1, "eingreifen + bei Streit", "Die Polizei", "bei dem Konflikt sofort", "Aktiv dazwischengehen, um zu helfen", "يَتدخَّل لفض نزاع", "to intervene", "müdahale etmek"],
+        ["be", 5, 1, "begreifen + Idee", "Durch das Bild", "das Gehirn das Wort sofort", "Tief und bildhaft verstehen", "يَستوعِب الفكرة بعمق", "to grasp / comprehend", "kavramak / anlamak"]
+      ]},
+      { id: "schließen", num: 26, level: "A1", cluster: "Besitz", ar: "يغلق / يبرم", en: "to close / conclude", tr: "kapatmak", stem3: "schließt", branches: [
+        ["ab", 5, 1, "abschließen + Tür / Vertrag", "Er", "heute eine gute Krankenversicherung", "Zusperren ODER einen Vertrag unterzeichnen", "يُقفِل الباب / يُبرِم عقداً", "to lock / sign a contract", "kilitlemek / sözleşme yapmak"],
+        ["an", 5, 1, "anschließen + Kabel", "Der Techniker", "den neuen Drucker an den PC", "Technisch verbinden", "يُوصِّل سلكاً أو جهازاً", "to connect / plug in", "bağlamak"],
+        ["aus", 4, 2, "ausschließen + Fehler", "Der Arzt", "eine ernste Krankheit komplett", "Unmöglich machen / nicht zulassen", "يَستبعِد احتمالاً", "to rule out / exclude", "dışlamak / ihtimal dışı bırakmak"],
+        ["be", 4, 2, "beschließen + Gesetz", "Der Vorstand", "heute eine wichtige Änderung", "Offiziell entscheiden", "يُقرِّر رسمياً", "to decide / resolve", "kararlaştırmak"]
+      ]},
+
+      // CLUSTER 4: KOMMUNIKATION & DENKEN (27-36)
+      { id: "sprechen", num: 27, level: "A1", cluster: "Sprache", ar: "يتحدث", en: "to speak", tr: "konuşmak", stem3: "spricht", branches: [
+        ["an", 5, 1, "ansprechen + auf (Thema)", "Ich", "meinen Chef morgen auf mehr Gehalt", "Jemanden gezielt kontaktieren", "يُفاتِح شخصاً بموضوع", "to address / approach", "konuyu açmak / hitap etmek"],
+        ["aus", 5, 1, "aussprechen + Wort", "Wie", "man dieses deutsche Wort richtig", "Artikulieren / laut sagen", "يَنطِق الكلمة", "to pronounce", "telaffuz etmek"],
+        ["ab", 5, 1, "absprechen + Termin", "Wir", "den genauen Plan vorher mit dir", "Gemeinsam vereinbaren", "يَنسِّق ويتفق مسبقاً", "to coordinate / agree on", "كararlaştırmak"],
+        ["be", 5, 2, "besprechen + Projekt", "Das Team", "die Ergebnisse in der Sitzung", "Ausführlich diskutieren (Untrennbar!)", "يُناقِش بالتفصيل", "to discuss", "görüşmek / tartışmak"],
+        ["ver", 5, 2, "versprechen + Hilfe", "Er", "seiner Mutter pünktlich anzurufen", "Sein Ehrenwort geben (oder falsch reden)", "يَعِد (أو يزِلّ باللسان)", "to promise", "söz vermek"]
+      ]},
+      { id: "sagen", num: 28, level: "A1", cluster: "Sprache", ar: "يقول", en: "to say", tr: "söylemek", stem3: "sagt", branches: [
+        ["ab", 5, 1, "absagen + Termin", "Sie", "das Treffen wegen Fieber leider", "Einen Termin stornieren", "يُلغي موعداً", "to cancel an appointment", "iptal etmek"],
+        ["zu", 5, 1, "zusagen + Einladung", "Der Bewerber", "der Firma nach dem Gespräch", "Verbindlich Ja sagen", "يُوافِق على دعوة أو عمل", "to accept / confirm", "kabul etmek / onaylamak"],
+        ["vorher", 4, 2, "vorhersagen + Wetter", "Der Bericht", "für morgen warmes Sommerwetter", "In die Zukunft prognostizieren", "يَتنبَّأ بـ (الطقس)", "to predict / forecast", "tahmin etmek"],
+        ["aus", 4, 2, "aussagen + vor Gericht", "Der Zeuge", "ehrlich bei der Polizei", "Offiziell berichten", "يُدلي بشهادته", "to testify / state", "ifade vermek"]
+      ]},
+      { id: "fragen", num: 29, level: "A1", cluster: "Sprache", ar: "يسأل", en: "to ask", tr: "sormak", stem3: "fragt", branches: [
+        ["nach", 5, 1, "nachfragen + beim Amt", "Ich", "morgen noch einmal telefonisch", "Genauer erkundigen", "يَستفسِر مجدداً للتأكد", "to inquire / follow up", "tekrar sormak / soruşturmak"],
+        ["an", 5, 1, "anfragen + Preis", "Die Firma", "den Preis für hundert Stück", "Offiziell um ein Angebot bitten", "يَطلُب عرض سعر رسمياً", "to send an inquiry", "fiyat sormak / talep etmek"],
+        ["be", 4, 2, "befragen + Kunden", "Wir", "hundert Nutzer zu unserer App", "Systematisch interviewen", "يَستجوِب / يَستطلِع آراء", "to survey / question", "anket yapmak / sorgulamak"]
+      ]},
+      { id: "rufen", num: 30, level: "A1", cluster: "Sprache", ar: "ينادي / يتصل", en: "to call", tr: "çağırmak / aramak", stem3: "ruft", branches: [
+        ["an", 5, 1, "anrufen + bei (Person)", "Ich", "dich heute Abend nach der Arbeit", "Mit dem Telefon kontaktieren", "يَتَّصِل هاتفياً", "to call by phone", "telefonla aramak"],
+        ["zurück", 5, 1, "zurückrufen + später", "Der Arzt", "Sie in einer halben Stunde", "Einen verpassten Anruf erwidern", "يُعاوِد الاتصال لاحقاً", "to call back", "geri aramak"],
+        ["auf", 4, 2, "aufrufen + Nummer", "Der Bildschirm", "jetzt Ihre Wartenummer", "Namen oder Webseite anzeigen", "يُنادي على الرقم", "to call up", "çağırmak / ekranda açmak"]
+      ]},
+      { id: "hören", num: 31, level: "A1", cluster: "Sprache", ar: "يسمع", en: "to hear", tr: "duymak / dinlemek", stem3: "hört", branches: [
+        ["auf", 5, 1, "aufhören + mit (Rauchen)", "Der Regen", "hoffentlich gleich endlich", "Stoppen / etwas beenden", "يَتوقَّف عن شيء", "to stop doing", "bırakmak / durmak"],
+        ["zu", 5, 1, "zuhören + mir (Dativ)", "Die Kinder", "der Lehrerin heute sehr aufmerksam", "Konzentriert lauschen", "يُصغي باهتمام", "to listen carefully", "dikkatle dinlemek"],
+        ["an", 5, 1, "sich anhören + gut", "Dein Vorschlag", "sich für mich wirklich super", "Klingen / eine Aufnahme abspielen", "يَبدو (جيداً عند السماع)", "to sound / listen to", "kulağa hoş gelmek"],
+        ["ge", 4, 2, "gehören + zu / mir", "Dieses blaue Auto", "meinem neuen Nachbarn", "Eigentum von jemandem sein", "يَخُصّ / يَنتمي إلى", "to belong to", "ait olmak"]
+      ]},
+      { id: "sehen", num: 32, level: "A1", cluster: "Sprache", ar: "يرى", en: "to see", tr: "görmek", stem3: "sieht", branches: [
+        ["aus", 5, 1, "aussehen + gut / müde", "Du", "heute in diesem Anzug richtig schick", "Optisch wirken / erscheinen", "يَبدو بمظهر معين", "to look / appear", "görünmek"],
+        ["an", 5, 1, "sich ansehen + Film", "Wir", "uns heute Abend die neue Wohnung", "Gezielt betrachten / prüfen", "يُشاهِد / يَفحَص بالنظر", "to look at / watch", "bakmak / izlemek"],
+        ["fern", 5, 1, "fernsehen + abends", "Mein Vater", "jeden Abend um acht Uhr", "TV-Programm schauen", "يُشاهِد التلفاز", "to watch TV", "televizyon izlemek"],
+        ["über", 4, 2, "übersehen + Schild", "Der Fahrer", "in der Nacht das rote Schild", "Aus Versehen nicht bemerken", "يَغفَل عن رؤية شيء", "to overlook / miss", "gözden kaçırmak"]
+      ]},
+      { id: "zeigen", num: 33, level: "A1", cluster: "Sprache", ar: "يُظهِر / يشير", en: "to show", tr: "göstermek", stem3: "zeigt", branches: [
+        ["an", 5, 1, "anzeigen + Diebstahl", "Das Thermometer", "heute schon dreißig Grad", "Auf einem Display zeigen ODER Polizei melden", "يُظهِر على الشاشة / يُبلِّغ الشرطة", "to display / report to police", "göstermek / ihbar etmek"],
+        ["auf", 4, 2, "aufzeigen + Lösung", "Die Grafik", "sehr klar unsere großen Chancen", "Deutlich sichtbar machen", "يُوضِّح الحلول", "to point out", "ortaya koymak"]
+      ]},
+      { id: "denken", num: 34, level: "A1", cluster: "Sprache", ar: "يفكر", en: "to think", tr: "düşünmek", stem3: "denkt", branches: [
+        ["nach", 5, 1, "nachdenken + über", "Ich", "oft über meine Zukunft in Deutschland", "Intensiv grübeln / reflektieren", "يُفكِّر بعمق في أمر", "to think about / reflect", "üzerinde düşünmek"],
+        ["mit", 5, 1, "mitdenken + bei Arbeit", "Dieser neue Kollege", "im Alltag wirklich super", "Aktiv und klug vorausdenken", "يُشغِّل عقله بذكاء مع الفريق", "to think along proactively", "aktif düşünüp katılmak"],
+        ["aus", 4, 2, "sich ausdenken + Geschichte", "Er", "sich für die Kinder ein Spiel", "Kreativ erfinden", "يَبتكِر فكرة أو قصة", "to make up / invent", "uydurmak / tasarlamak"]
+      ]},
+      { id: "kennen", num: 35, level: "A1", cluster: "Sprache", ar: "يعرف", en: "to know", tr: "tanımak / bilmek", stem3: "kennt", branches: [
+        ["er", 5, 1, "erkennen + Gesicht / Grund", "Ich", "meinen alten Freund auf dem Foto sofort", "Wiederentdecken oder klar sehen", "يَتعرَّف على / يُدرِك", "to recognize", "tanımak / fark etmek"],
+        ["aus", 5, 1, "sich auskennen + mit / in", "Sie", "sich in Berlin schon richtig gut", "Viel Wissen über einen Ort/Thema haben", "لَديه خبرة ومعرفة جيدة بـ", "to know one's way around", "iyi bilmek / uzman olmak"],
+        ["an", 4, 2, "anerkennen + Zeugnis", "Der Staat", "ihr ausländisches Diplom offiziell", "Offiziell als gültig akzeptieren", "يَعترِف رسمياً بالشهادة", "to recognize officially", "denkliğini kabul etmek"]
+      ]},
+      { id: "wissen", num: 36, level: "A1", cluster: "Sprache", ar: "يعلم", en: "to know facts", tr: "bilmek", stem3: "weiß", branches: [
+        ["weiter", 5, 1, "weiterwissen + bei Problem", "Manchmal", "man im Leben einfach nicht", "Einen Ausweg oder Rat kennen", "يَعرِف كيف يتصرف لاحقاً", "to know how to go on", "ne yapacağını bilmek"],
+        ["be", 4, 2, "Bescheid wissen + über", "Der Chef", "über deinen Urlaub schon", "Informiert sein", "على عِلم بالأمر", "to be informed", "haberdar olmak"]
+      ]},
+
+      // CLUSTER 5: ARBEIT, ALLTAG & ORGANISATION (37-45)
+      { id: "machen", num: 37, level: "A1", cluster: "Alltag", ar: "يفعل / يصنع", en: "to make / do", tr: "yapmak", stem3: "macht", branches: [
+        ["auf", 5, 1, "aufmachen + Tür / Fenster", "Kannst du", "bitte kurz das Fenster im Zimmer", "Öffnen", "يَفتَح (الباب أو النافذة)", "to open", "açmak"],
+        ["zu", 5, 1, "zumachen + Tür / Jacke", "Das Geschäft", "heute schon um achtzehn Uhr", "Schließen", "يُغلِق", "to close / shut", "kapatmak"],
+        ["aus", 5, 1, "ausmachen + Licht / Termin", "Bitte", "beim Gehen das Licht im Bad", "Ausschalten ODER vereinbaren", "يُطفِئ الضوء / يَتَّفِق على موعد", "to turn off / agree on", "kapatmak / kararlaştırmak"],
+        ["an", 4, 2, "anmachen + Heizung / Licht", "Ich", "im Winter sofort die warme Heizung", "Einschalten", "يُشغِّل (الضوء أو التدفئة)", "to turn on", "açmak / çalıştırmak"],
+        ["mit", 4, 2, "mitmachen + bei Spiel", "Alle Nachbarn", "beim großen Sommerfest begeistert", "Aktiv teilnehmen", "يُشارِك مع الآخرين", "to join in", "katılmak"]
+      ]},
+      { id: "arbeiten", num: 38, level: "A1", cluster: "Alltag", ar: "يعمل", en: "to work", tr: "çalışmak", stem3: "arbeitet", branches: [
+        ["zusammen", 5, 1, "zusammenarbeiten + mit", "Unsere Abteilung", "eng mit dem Kundenservice", "Im Team kooperieren", "يَتعاوَن في العمل مع", "to collaborate", "işbirliği yapmak"],
+        ["ein", 5, 1, "sich einarbeiten + in Job", "Der neue Kollege", "sich extrem schnell in das System", "Neue Aufgaben im Beruf lernen", "يَتدرَّب ويتأقلم مع عمل جديد", "to familiarize oneself", "işe alışmak"],
+        ["be", 4, 2, "bearbeiten + Antrag", "Das Amt", "Ihren Antrag innerhalb von zwei Wochen", "Prüfen und erledigen (Untrennbar!)", "يُعالِج طلباً أو ملفاً", "to process / edit", "işleme koymak"]
+      ]},
+      { id: "schreiben", num: 39, level: "A1", cluster: "Alltag", ar: "يكتب", en: "to write", tr: "yazmak", stem3: "schreibt", branches: [
+        ["auf", 5, 1, "aufschreiben + Notiz", "Ich", "mir das neue Wort sofort im Heft", "Notieren, damit man es nicht vergisst", "يُدوِّن ملاحظة على ورق", "to write down", "not almak"],
+        ["unter", 5, 1, "unterschreiben + Vertrag", "Sie", "heute endlich ihren neuen Mietvertrag", "Mit seiner Signatur bestätigen (Untrennbar!)", "يُوقِّع على العقد", "to sign", "imzalamak"],
+        ["be", 5, 1, "beschreiben + Bild / Weg", "Der Zeuge", "der Polizei den Vorfall ganz genau", "Mit Worten erklären (Untrennbar!)", "يَصِف بالتفصيل", "to describe", "tarif etmek / betimlemek"],
+        ["ein", 4, 2, "sich einschreiben + an Uni", "Der Student", "sich für das Wintersemester", "Offiziell registrieren", "يُسجِّل في الجامعة", "to enroll / register", "kayıt yaptırmak"]
+      ]},
+      { id: "lesen", num: 40, level: "A1", cluster: "Alltag", ar: "يقرأ", en: "to read", tr: "okumak", stem3: "liest", branches: [
+        ["vor", 5, 1, "vorlesen + den Kindern", "Die Mutter", "ihrem Kind jeden Abend eine Geschichte", "Laut für andere lesen", "يَقرأ بصوتٍ عالٍ للآخرين", "to read aloud to", "sesli okumak"],
+        ["durch", 5, 1, "durchlesen + Vertrag", "Bitte", "dir den Brief vor der Unterschrift gut", "Von Anfang bis Ende lesen", "يَقرأ النص كاملاً بعناية", "to read through", "baştan sona okumak"],
+        ["ab", 4, 2, "ablesen + Zählerstand", "Er", "heute den Stromzähler im Keller", "Einen Wert vom Gerät ablesen", "يَقرأ العداد أو الرقم", "to read off a meter", "سayaç okumak"]
+      ]},
+      { id: "kaufen", num: 41, level: "A1", cluster: "Alltag", ar: "يشتري", en: "to buy", tr: "satın almak", stem3: "kauft", branches: [
+        ["ein", 5, 1, "einkaufen + im Supermarkt", "Wir", "jeden Samstag frisches Gemüse auf dem Markt", "Lebensmittel / Dinge besorgen", "يَتسوَّق للبيت", "to go grocery shopping", "alışveriş yapmak"],
+        ["ver", 5, 1, "verkaufen + altes Auto", "Er", "sein altes Fahrrad über das Internet", "Gegen Geld abgeben (Untrennbar!)", "يَبيع", "to sell", "satmak"],
+        ["ab", 4, 2, "abkaufen + jemandem", "Ich", "meinem Nachbarn den gebrauchten Tisch", "Direkt von einer Person erwerben", "يَشتري شيئاً من شخص مباشرة", "to buy from someone", "birinden satın almak"]
+      ]},
+      { id: "zahlen", num: 42, level: "A1", cluster: "Alltag", ar: "يدفع مالاً", en: "to pay", tr: "ödemek", stem3: "zahlt", branches: [
+        ["be", 5, 1, "bezahlen + Rechnung", "Ich", "die Rechnung im Restaurant heute mit Karte", "Den Preis begleichen (Untrennbar!)", "يَدفَع الفاتورة", "to pay a bill", "hesabı ödemek"],
+        ["ein", 5, 1, "einzahlen + auf Konto", "Sie", "das Bargeld direkt am Automaten", "Geld auf die Bank bringen", "يُودِع المال في الحساب", "to deposit money", "hesaba para yatırmak"],
+        ["aus", 5, 1, "auszahlen + Gehalt", "Die Firma", "den Bonus Ende November", "Geld an jemanden ausschütten", "يَصرِف الراتب أو المال نقداً", "to pay out", "ödeme yapmak"]
+      ]},
+      { id: "suchen", num: 43, level: "A1", cluster: "Alltag", ar: "يبحث", en: "to search", tr: "aramak", stem3: "sucht", branches: [
+        ["aus", 5, 1, "sich aussuchen + Geschenk", "Das Kind", "sich im Laden ein schönes Buch", "Unter mehreren Optionen wählen", "يَختار ما يُعجبه", "to choose / pick out", "seçmek"],
+        ["be", 5, 1, "besuchen + Freunde / Kurs", "Wir", "am Wochenende unsere Großeltern", "Zu jemandem zu Gast gehen (Untrennbar!)", "يَزور", "to visit / attend", "ziyaret etmek"],
+        ["unter", 4, 2, "untersuchen + Patienten", "Die Ärztin", "das kranke Knie sehr gründlich", "Medizinisch oder wissenschaftlich prüfen", "يَفحَص طبياً أو بدقة", "to examine / investigate", "muayene etmek / incelemek"],
+        ["ver", 5, 1, "versuchen + noch einmal", "Er", "heute ein neues deutsches Rezept", "Auf die Probe stellen / probieren", "يُحاوِل / يُجرِّب", "to try / attempt", "denemek"]
+      ]},
+      { id: "finden", num: 44, level: "A1", cluster: "Alltag", ar: "يجد", en: "to find", tr: "bulmak", stem3: "findet", branches: [
+        ["statt", 5, 1, "stattfinden + am Montag", "Das Konzert", "heute wegen Sonne im Freien", "Passieren / veranstaltet werden", "يُقام الحدث في موعده", "to take place", "gerçekleşmek / yapılmak"],
+        ["heraus", 5, 1, "herausfinden + Wahrheit", "Die Polizei", "schnell die Ursache des Unfalls", "Durch Suche entdecken", "يَكتشِف الحقيقة", "to find out", "keşfetmek / öğrenmek"],
+        ["er", 4, 2, "erfinden + Maschine", "Wer", "eigentlich das moderne Telefon", "Zum ersten Mal erschaffen", "يَخترِع", "to invent", "icat etmek"]
+      ]},
+      { id: "bauen", num: 45, level: "A2", cluster: "Alltag", ar: "يبني", en: "to build", tr: "inşa etmek", stem3: "baut", branches: [
+        ["auf", 5, 1, "aufbauen + Möbel / Firma", "Wir", "zusammen den neuen Kleiderschrank", "Montieren oder Schritt für Schritt gründen", "يُركِّب الأثاث / يَبني مشروعاً", "to assemble / build up", "kurmak / monte etmek"],
+        ["ab", 4, 2, "abbauen + Stress", "Sport am Abend", "den täglichen Stress extrem gut", "Reduzieren oder demontieren", "يُخفِّف التوتر / يُفكِّك", "to reduce stress / dismantle", "azaltmak / sökmek"],
+        ["um", 4, 2, "umbauen + Küche", "Die Familie", "im Sommer das alte Badezimmer", "Baulich verändern / modernisieren", "يُجدِّد ويُعدِّل البناء", "to remodel / convert", "tadilat yapmak"]
+      ]},
+
+      // CLUSTER 6: VERÄNDERUNG & ZUSTAND (46-50)
+      { id: "fangen", num: 46, level: "A1", cluster: "Zustand", ar: "يمسك / يبدأ", en: "to catch", tr: "yakalamak", stem3: "fängt", branches: [
+        ["an", 5, 1, "anfangen + mit (Kurs)", "Der Deutschkurs", "morgen pünktlich um neun Uhr", "Beginnen / starten", "يَبدأ", "to begin / start", "başlamak"],
+        ["emp", 4, 2, "empfangen + Gäste / Paket", "Das Hotel", "die Gäste mit einem warmen Tee", "Willkommen heißen oder Signal erhalten", "يَستقبِل الضيوف أو الإشارة", "to receive / welcome", "karşılamak / sinyal almak"],
+        ["auf", 4, 2, "auffangen + Ball / Regen", "Die Tonne im Garten", "das frische Regenwasser", "Im Fallen festhalten", "يَلتقِط قبل السقوط", "to catch / cushion", "havada yakalamak"]
+      ]},
+      { id: "lassen", num: 47, level: "A2", cluster: "Zustand", ar: "يترك / يدع", en: "to let / leave", tr: "bırakmak", stem3: "lässt", branches: [
+        ["ver", 5, 1, "sich verlassen + auf", "Ich", "mich in jeder Lage voll auf dich", "Jemandem zu 100 % vertrauen (Untrennbar!)", "يَعتمِد ويثق كلياً بشخص", "to rely on", "güvenmek"],
+        ["zu", 5, 1, "zulassen + Auto / Ausnahme", "Die Behörde", "das neue Medikament heute offiziell", "Offiziell erlauben / genehmigen", "يَسمَح رسمياً / يُرخِّص سيارة", "to permit / register a car", "izin vermek / ruhsat çıkarmak"],
+        ["ent", 4, 2, "entlassen + aus Klinik", "Das Krankenhaus", "den gesunden Patienten heute", "Nach Hause schicken oder kündigen", "يُخرِج من المشفى / يَفصِل من عمل", "to discharge / dismiss", "taburcu etmek / işten çıkarmak"]
+      ]},
+      { id: "bleiben", num: 48, level: "A1", cluster: "Zustand", ar: "يبقى", en: "to stay / remain", tr: "kalmak", stem3: "bleibt", branches: [
+        ["übrig", 5, 1, "übrigbleiben + vom Essen", "Vom großen Kuchen", "heute kein einziges Stück", "Als Rest übrig sein", "يَتبقّى من الشيء", "to be left over", "geriye artmak"],
+        ["dran", 5, 1, "dranbleiben + beim Lernen", "Wer jeden Tag fünf Minuten", "lernt fließend Deutsch", "Nicht aufgeben, weitermachen", "يُثابِر ويستمر دون انقطاع", "to stick with it", "azimle devam etmek"],
+        ["aus", 4, 2, "ausbleiben + Erfolg", "Der versprochene Regen", "auch diese Woche leider", "Nicht kommen / nicht eintreten", "يَغيب ولا يحدث", "to fail to appear", "gerçekleşmemek"]
+      ]},
+      { id: "schlagen", num: 49, level: "A2", cluster: "Zustand", ar: "يضرب / يقترح", en: "to hit / beat", tr: "vurmak", stem3: "schlägt", branches: [
+        ["vor", 5, 1, "vorschlagen + Lösung", "Ich", "für unser Treffen das kleine Café", "Eine gute Idee präsentieren", "يَقترِح فكرة أو مكاناً", "to suggest / propose", "önermek"],
+        ["nach", 4, 2, "nachschlagen + im Buch", "Der Schüler", "das unbekannte Wort im Wörterbuch", "In einem Lexikon suchen", "يَبحَث عن كلمة في القاموس", "to look up in a book", "sözlüğe bakmak"],
+        ["fehl", 3, 3, "fehlschlagen + Versuch", "Die Anmeldung", "wegen des falschen Passworts", "Nicht gelingen / scheitern", "يَفشَل المحاولة", "to fail", "başarısız olmak"]
+      ]},
+      { id: "stimmen", num: 50, level: "A2", cluster: "Zustand", ar: "يصح / يصوت", en: "to be right / vote", tr: "doğru olmak / oy vermek", stem3: "stimmt", branches: [
+        ["zu", 5, 1, "zustimmen + dem Plan", "Alle Kollegen", "deinem guten Vorschlag sofort", "Einer Meinung sein / Ja sagen", "يُوافِق ويؤيّد الرأي", "to agree to", "katılmak / onaylamak"],
+        ["ab", 5, 1, "abstimmen + über (Gesetz)", "Das Team", "heute demokratisch über das Design", "Eine Wahl durchführen oder koordinieren", "يُصوِّت على قرار", "to vote on / coordinate", "oylama yapmak"],
+        ["be", 5, 1, "bestimmen + über", "Du", "in dieser App dein Lerntempo selbst", "Festlegen / entscheiden (Untrennbar!)", "يُحدِّد ويُقرِّر", "to determine / decide", "belirlemek"]
+      ]}
+    ];
+
+    // =========================================================================
+    // 3. APP STATE & INITIALISIERUNG
+    // =========================================================================
+    let viewLevel = "VERB"; // "GALAXY" (6 Wortfelder) oder "VERB" (Präfix-Orbit eines Verbs)
+    let activeVerbIndex = 0; // 0..49
+    let activeBranchIndex = 0;
+    let currentOnionLayer = 1; // 1 = nur ★5, 2 = ★4+, 3 = ★3+
+    let currentNativeLang = "ar";
+    let alwaysShowNative = true;
+    let isQuizMode = false;
+    let quizTargetBranch = null;
+    let quizStreak = 0;
+    let masteredVerbs = new Set(["kommen"]);
+
+    // =========================================================================
+    // 4. MINIMALISTISCHE DUAL-CODING SVG ANIMATIONEN
+    // =========================================================================
+    function renderDualCodingSvg(svgKey) {
+      const icons = {
+        arrive: `
+          <svg viewBox="0 0 72 72" class="w-14 h-14">
+            <circle cx="54" cy="36" r="8" fill="#f43f5e"/>
+            <path d="M12 36 L40 36 M33 29 L41 36 L33 43" stroke="#2563eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="svg-slide"/>
+          </svg>`,
+        up_open: `
+          <svg viewBox="0 0 72 72" class="w-14 h-14">
+            <rect x="18" y="42" width="36" height="14" rx="4" fill="#cbd5e1"/>
+            <g class="svg-float">
+              <path d="M36 40 L36 16 M26 25 L36 15 L46 25" stroke="#e11d48" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </g>
+          </svg>`,
+        enter: `
+          <svg viewBox="0 0 72 72" class="w-14 h-14">
+            <path d="M36 14 L58 14 L58 58 L36 58" stroke="#475569" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <g class="svg-slide">
+              <circle cx="24" cy="36" r="7" fill="#eab308"/>
+              <path d="M32 36 L48 36" stroke="#eab308" stroke-width="4" stroke-linecap="round"/>
+            </g>
+          </svg>`,
+        forward: `
+          <svg viewBox="0 0 72 72" class="w-14 h-14">
+            <line x1="38" y1="14" x2="38" y2="58" stroke="#cbd5e1" stroke-width="4" stroke-dasharray="4 4"/>
+            <path d="M14 36 L58 36 M48 26 L58 36 L48 46" stroke="#f59e0b" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" class="svg-slide"/>
+          </svg>`,
+        down_off: `
+          <svg viewBox="0 0 72 72" class="w-14 h-14">
+            <circle cx="36" cy="48" r="12" stroke="#334155" stroke-width="3.5" fill="#f8fafc"/>
+            <g class="svg-float">
+              <rect x="20" y="16" width="32" height="8" rx="4" fill="#0ea5e9"/>
+              <path d="M36 26 L36 35" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round"/>
+            </g>
+          </svg>`,
+        out_exit: `
+          <svg viewBox="0 0 72 72" class="w-14 h-14">
+            <rect x="14" y="18" width="24" height="36" rx="4" stroke="#64748b" stroke-width="3.5" fill="none"/>
+            <path d="M28 36 L58 36 M49 27 L58 36 L49 45" stroke="#3b82f6" stroke-width="4" stroke-linecap="round" class="svg-slide"/>
+          </svg>`,
+        return: `
+          <svg viewBox="0 0 72 72" class="w-14 h-14">
+            <path d="M22 28 C48 12, 62 36, 44 48 L20 48" stroke="#10b981" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <polyline points="28,41 19,48 28,55" stroke="#10b981" stroke-width="4" fill="none" stroke-linecap="round"/>
+          </svg>`,
+        together: `
+          <svg viewBox="0 0 72 72" class="w-14 h-14">
+            <g class="svg-slide">
+              <circle cx="26" cy="32" r="8" fill="#10b981"/>
+              <circle cx="44" cy="32" r="8" fill="#2563eb"/>
+              <path d="M18 50 L54 50" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
+            </g>
+          </svg>`,
+        transform: `
+          <svg viewBox="0 0 72 72" class="w-14 h-14">
+            <circle cx="22" cy="36" r="9" fill="#a855f7"/>
+            <path d="M34 36 L44 36" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>
+            <rect x="46" y="26" width="18" height="20" rx="4" fill="#ec4899" class="svg-float"/>
+          </svg>`
+      };
+      return icons[svgKey] || icons.arrive;
+    }
+
+    // =========================================================================
+    // 5. HAUPT-RENDERER: MINDLY ORBITAL MAP + KOMPASS-WINKEL
+    // =========================================================================
+    function renderOrbitMap() {
+      const container = document.getElementById("orbitPlanetsContainer");
+      const svgLines = document.getElementById("mindmapSvgLines");
+      container.innerHTML = "";
+      svgLines.innerHTML = "";
+
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height * 0.55;
+      const outerRadius = Math.min(rect.width, rect.height) * 0.355;
+      const innerRadius = Math.min(rect.width, rect.height) * 0.23;
+
+      // GALAXIE-MODUS: Zeige die 6 semantischen Wortfelder der 50 Verben
+      if (viewLevel === "GALAXY") {
+        document.getElementById("mindlyTopSub").textContent = "Alle 50";
+        document.getElementById("mindlyTopTitle").textContent = "Verben";
+        document.getElementById("centerLevelBadge").textContent = "6 Cluster";
+        document.getElementById("centerMainWord").textContent = "DaF Galaxie";
+        document.getElementById("centerSubTranslation").textContent = "50 Kernverben";
+
+        const clusters = ["Bewegung", "Position", "Besitz", "Sprache", "Alltag", "Zustand"];
+        const colors = ["#ff8a8a", "#ffd166", "#7ae582", "#4cc9f0", "#c77dff", "#f9c74f"];
+
+        clusters.forEach((clusterName, idx) => {
+          const angleDeg = idx * 60;
+          const rad = ((angleDeg - 90) * Math.PI) / 180;
+          const x = centerX + outerRadius * Math.cos(rad);
+          const y = centerY + outerRadius * Math.sin(rad);
+
+          const verbsInCluster = RAW_50_VERBS.filter(v => v.cluster === clusterName);
+
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", centerX);
+          line.setAttribute("y1", centerY);
+          line.setAttribute("x2", x);
+          line.setAttribute("y2", y);
+          line.setAttribute("stroke", "#cbd5e1");
+          line.setAttribute("stroke-width", "2.5");
+          svgLines.appendChild(line);
+
+          const planet = document.createElement("div");
+          planet.className = "orbit-planet pointer-events-auto absolute w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center text-center p-2 cursor-pointer shadow-lg border-2 border-white";
+          planet.style.left = `${x}px`;
+          planet.style.top = `${y}px`;
+          planet.style.transform = "translate(-50%, -50%)";
+          planet.style.backgroundColor = colors[idx];
+          planet.innerHTML = `
+            <span class="text-[10px] font-black uppercase text-slate-900/70">${verbsInCluster.length} Verben</span>
+            <span class="text-sm sm:text-base font-extrabold text-slate-900">${clusterName}</span>
+            <span class="text-[10px] font-bold text-slate-800 mt-0.5">${verbsInCluster.slice(0,2).map(v=>v.id).join(", ")}..</span>
+          `;
+          planet.onclick = () => {
+            const firstVerbIdx = RAW_50_VERBS.findIndex(v => v.cluster === clusterName);
+            selectVerb(firstVerbIdx);
+          };
+          container.appendChild(planet);
+        });
+        return;
+      }
+
+      // VERB-MODUS: Rendere das aktive Basisverb im Zentrum und die Präfixe auf ihrer festen Kompass-Uhrzeit
+      const verb = RAW_50_VERBS[activeVerbIndex];
+      document.getElementById("mindlyTopSub").textContent = verb.cluster;
+      document.getElementById("mindlyTopTitle").textContent = "Top 50 🪐";
+      document.getElementById("centerLevelBadge").textContent = `Verb #${verb.num} • ${verb.level}`;
+      document.getElementById("centerMainWord").textContent = verb.id;
+      document.getElementById("centerSubTranslation").textContent = verb[currentNativeLang];
+      document.getElementById("centerSubTranslation").className = `text-[11px] font-semibold text-blue-100 mt-1 ${currentNativeLang === 'ar' ? 'arabic-text' : ''}`;
+      document.getElementById("verbIndexIndicator").textContent = verb.num;
+
+      verb.branches.forEach((b, idx) => {
+        const [prefix, stars, onionLayer, chunkLabel] = b;
+        const compass = PREFIX_COMPASS[prefix] || { angle: idx * 55, clock: "Orbit", color: "#94a3b8", sep: true, svg: "arrive", rule: "Präfix-Modifikation" };
+
+        const isUnlocked = onionLayer <= currentOnionLayer;
+        const isSelected = idx === activeBranchIndex && !isQuizMode;
+        const r = compass.sep ? outerRadius : innerRadius;
+
+        const rad = ((compass.angle - 90) * Math.PI) / 180;
+        const x = centerX + r * Math.cos(rad);
+        const y = centerY + r * Math.sin(rad);
+
+        // Verbindungslinie (Gestrichelt = Trennbar, Durchgezogen = Untrennbar)
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", centerX);
+        line.setAttribute("y1", centerY);
+        line.setAttribute("x2", x);
+        line.setAttribute("y2", y);
+        line.setAttribute("stroke", isSelected ? "#2563eb" : (compass.sep ? "#cbd5e1" : "#a855f7"));
+        line.setAttribute("stroke-width", isSelected ? "3.5" : "2");
+        if (compass.sep) {
+          line.setAttribute("stroke-dasharray", "5,4");
+        }
+        svgLines.appendChild(line);
+
+        // Wenn durch Zwiebel-Schicht noch ausgeblendet -> Dezentes Mindly "+" Icon auf dem Ring
+        if (!isUnlocked) {
+          const plusDot = document.createElement("button");
+          plusDot.className = "orbit-planet pointer-events-auto absolute w-8 h-8 rounded-full bg-white hover:bg-blue-50 text-slate-500 border border-slate-300 font-extrabold text-xs flex items-center justify-center shadow-sm";
+          plusDot.style.left = `${x}px`;
+          plusDot.style.top = `${y}px`;
+          plusDot.style.transform = "translate(-50%, -50%)";
+          plusDot.title = `Zwiebel-Schicht ${onionLayer} (${stars}★) öffnen`;
+          plusDot.textContent = "+";
+          plusDot.onclick = () => {
+            setOnionLayer(onionLayer);
+            activeBranchIndex = idx;
+            renderOrbitMap();
+            updateInspectorCard();
+          };
+          container.appendChild(plusDot);
+          return;
+        }
+
+        // Aktiver Präfix-Planet
+        const planet = document.createElement("div");
+        planet.className = `orbit-planet pointer-events-auto absolute w-22 h-22 sm:w-26 sm:h-26 rounded-full flex flex-col items-center justify-center text-center p-2 cursor-pointer shadow-lg border-2 ${
+          isSelected ? "border-blue-600 ring-4 ring-blue-500/25 scale-105 z-30" : "border-white/80"
+        }`;
+        planet.style.width = window.innerWidth < 640 ? "88px" : "104px";
+        planet.style.height = window.innerWidth < 640 ? "88px" : "104px";
+        planet.style.left = `${x}px`;
+        planet.style.top = `${y}px`;
+        planet.style.transform = "translate(-50%, -50%)";
+        planet.style.backgroundColor = compass.color;
+
+        if (isQuizMode) {
+          planet.innerHTML = `
+            <span class="text-xl font-black text-slate-900/75">?</span>
+            <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-white/80 text-slate-800 mt-0.5">
+              ${compass.clock.split(" ")[0]}
+            </span>
+          `;
+        } else {
+          const shortPrep = chunkLabel.includes("+") ? chunkLabel.split("+")[1].trim() : "";
+          planet.innerHTML = `
+            <span class="text-[9px] font-black text-slate-900/70 leading-none">${"★".repeat(stars)}</span>
+            <span class="text-xs sm:text-sm font-extrabold text-slate-900 leading-tight mt-0.5">
+              <span class="underline decoration-2">${prefix}</span>${compass.sep ? "|" : ""}${verb.id}
+            </span>
+            ${shortPrep ? `<span class="mt-1 px-1.5 py-0.5 rounded-full bg-white/90 text-slate-900 font-extrabold text-[9px] leading-none shadow-sm">+ ${shortPrep}</span>` : ""}
+          `;
+        }
+
+        planet.onclick = () => {
+          if (isQuizMode) {
+            evaluateQuizTap(idx);
+          } else {
+            activeBranchIndex = idx;
+            renderOrbitMap();
+            updateInspectorCard();
+          }
+        };
+        container.appendChild(planet);
+      });
+    }
+
+    // =========================================================================
+    // 6. INSPECTOR & PHYSIKALISCHE SATZ-KLAMMER-SCHLEUDER
+    // =========================================================================
+    function updateInspectorCard() {
+      const verb = RAW_50_VERBS[activeVerbIndex];
+      const branch = verb.branches[activeBranchIndex] || verb.branches[0];
+      const [prefix, stars, onionLayer, chunkLabel, subj, midObj, meaningDe, ar, en, tr] = branch;
+      const compass = PREFIX_COMPASS[prefix] || { clock: "Orbit", sep: true, svg: "arrive", rule: "Präfix-Logik" };
+
+      document.getElementById("inspectorVerbBadge").textContent = compass.sep ? `${prefix}|${verb.id}` : `${prefix}${verb.id}`;
+      const sepBadge = document.getElementById("inspectorSeparableBadge");
+      if (compass.sep) {
+        sepBadge.className = "px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-extrabold text-xs";
+        sepBadge.textContent = "🧲 Trennbar: Vorsilbe fliegt ans Satzende!";
+      } else {
+        sepBadge.className = "px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-900 font-extrabold text-xs";
+        sepBadge.textContent = "🔒 Untrennbar: Vorsilbe klebt fest am Verb!";
+      }
+
+      document.getElementById("inspectorStars").textContent = "★".repeat(stars) + "☆".repeat(5 - stars);
+      document.getElementById("dualCodingCanvas").innerHTML = renderDualCodingSvg(compass.svg);
+      document.getElementById("compassClockBadge").textContent = `🧭 ${compass.clock}`;
+      document.getElementById("inspectorMeaningTitle").textContent = meaningDe;
+      document.getElementById("inspectorLocomotiveRule").innerHTML = `🚂 <b>Vorsilbe ${prefix}-:</b> ${compass.rule}`;
+
+      // Satz-Klammer-Physik-Bühne bauen
+      renderSentencePhysics(verb, branch, compass);
+
+      // Chunk-Buttons für alle freigeschalteten Äste dieses Verbs rendern
+      const chunkRow = document.getElementById("chunkButtonsRow");
+      chunkRow.innerHTML = "";
+      verb.branches.forEach((b, idx) => {
+        if (b[2] > currentOnionLayer) return;
+        const btn = document.createElement("button");
+        const isCurrent = idx === activeBranchIndex;
+        btn.className = `px-3 py-1.5 rounded-xl text-xs font-extrabold transition ${
+          isCurrent ? "bg-emerald-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+        }`;
+        btn.textContent = `🧩 ${b[3]}`;
+        btn.onclick = () => {
+          activeBranchIndex = idx;
+          renderOrbitMap();
+          updateInspectorCard();
+        };
+        chunkRow.appendChild(btn);
+      });
+
+      // Muttersprachen-Anker aktualisieren
+      const transMap = { ar, en, tr };
+      const outEl = document.getElementById("nativeAnchorOutput");
+      outEl.textContent = `${transMap[currentNativeLang]} — [${chunkLabel}]`;
+      outEl.className = `text-sm font-extrabold text-slate-900 mt-0.5 ${currentNativeLang === 'ar' ? 'arabic-text' : ''}`;
+      updateNativeVisibility();
+    }
+
+    function renderSentencePhysics(verb, branch, compass) {
+      const [prefix, , , , subj, midObj] = branch;
+      const stage = document.getElementById("sentencePhysicsStage");
+
+      if (compass.sep) {
+        // Trennbar: Verb-Stamm auf Position 2, Präfix fliegt animiert ans Satzende!
+        stage.innerHTML = `
+          <span class="text-slate-300">${subj}</span>
+          <span class="px-2 py-0.5 rounded-lg bg-blue-600 text-white font-black">${verb.stem3}</span>
+          <span class="text-emerald-300 underline decoration-emerald-500/60 decoration-dashed">${midObj}</span>
+          <span id="slungPrefixEl" class="px-2.5 py-0.5 rounded-lg bg-rose-500 text-white font-black shadow-lg animate-sling">${prefix}.</span>
+        `;
+      } else {
+        // Untrennbar: Präfix + Verb kleben auf Position 2 magnetisch zusammen!
+        stage.innerHTML = `
+          <span class="text-slate-300">${subj}</span>
+          <span class="px-2.5 py-0.5 rounded-lg bg-indigo-600 text-white font-black animate-magnet">${prefix}${verb.stem3}</span>
+          <span class="text-emerald-300">${midObj}.</span>
+        `;
+      }
+    }
+
+    function replaySlingAnimation() {
+      const verb = RAW_50_VERBS[activeVerbIndex];
+      const branch = verb.branches[activeBranchIndex] || verb.branches[0];
+      const compass = PREFIX_COMPASS[branch[0]] || { sep: true };
+      renderSentencePhysics(verb, branch, compass);
+    }
+
+    // =========================================================================
+    // 7. TOPOGRAFISCHES SPACED-REPETITION QUIZ
+    // =========================================================================
+    function toggleQuizMode() {
+      isQuizMode = !isQuizMode;
+      const btn = document.getElementById("quizModeBtn");
+      const bar = document.getElementById("quizMissionBar");
+
+      if (isQuizMode) {
+        viewLevel = "VERB";
+        btn.textContent = "✕ Quiz beenden";
+        btn.className = "px-3.5 py-2 rounded-2xl text-xs font-extrabold bg-slate-900 text-white shadow-md";
+        bar.classList.remove("hidden");
+        nextQuizChallenge();
+      } else {
+        btn.textContent = "🎯 Mindmap-Quiz";
+        btn.className = "px-3.5 py-2 rounded-2xl text-xs font-extrabold bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md";
+        bar.classList.add("hidden");
+        renderOrbitMap();
+      }
+    }
+
+    function nextQuizChallenge() {
+      const verb = RAW_50_VERBS[activeVerbIndex];
+      const availableIndices = verb.branches
+        .map((b, i) => (b[2] <= currentOnionLayer ? i : -1))
+        .filter(i => i !== -1);
+
+      quizTargetBranch = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+      const [prefix, , , chunkLabel, subj, midObj, meaningDe, ar, en, tr] = verb.branches[quizTargetBranch];
+      const compass = PREFIX_COMPASS[prefix] || { sep: true };
+
+      const cloze = compass.sep
+        ? `„${subj} <b>${verb.stem3}</b> ${midObj} <span class="text-amber-400">[ ___ ]</span>.“`
+        : `„${subj} <span class="text-amber-400">[ ___ ]</span><b>${verb.stem3}</b> ${midObj}.“`;
+
+      const nativeHint = { ar, en, tr }[currentNativeLang];
+      document.getElementById("quizQuestionText").innerHTML = `Tippe auf den richtigen Ort für: ${cloze}`;
+      document.getElementById("quizQuestionSub").textContent = `Bedeutung: ${meaningDe} (${nativeHint})`;
+      renderOrbitMap();
+    }
+
+    function evaluateQuizTap(tappedIdx) {
+      const verb = RAW_50_VERBS[activeVerbIndex];
+      if (tappedIdx === quizTargetBranch) {
+        quizStreak++;
+        masteredVerbs.add(verb.id);
+        updateMasteredCounter();
+        document.getElementById("quizStreakBadge").textContent = `🔥 Serie: ${quizStreak} (Richtig!)`;
+        activeBranchIndex = tappedIdx;
+        updateInspectorCard();
+        speakCurrentExample();
+        setTimeout(() => {
+          if (isQuizMode) nextQuizChallenge();
+        }, 1000);
+      } else {
+        quizStreak = 0;
+        document.getElementById("quizStreakBadge").textContent = `🔥 Serie: 0 (Versuch einen anderen Ort!)`;
+      }
+    }
+
+    // =========================================================================
+    // 8. NAVIGATION, 50-VERBEN-KATALOG & AUDIO
+    // =========================================================================
+    function selectVerb(index) {
+      viewLevel = "VERB";
+      activeVerbIndex = (index + RAW_50_VERBS.length) % RAW_50_VERBS.length;
+      activeBranchIndex = 0;
+      document.getElementById("verbCatalogDrawer").classList.add("hidden");
+      renderOrbitMap();
+      updateInspectorCard();
+      renderBottomVerbStrip();
+      if (isQuizMode) nextQuizChallenge();
+    }
+
+    function stepVerb(delta) {
+      selectVerb(activeVerbIndex + delta);
+    }
+
+    function enterGalaxyOverview() {
+      viewLevel = "GALAXY";
+      renderOrbitMap();
+    }
+
+    function handleTopParentClick() {
+      if (viewLevel === "VERB") {
+        enterGalaxyOverview();
+      } else {
+        toggleVerbDrawer();
+      }
+    }
+
+    function setOnionLayer(layer) {
+      currentOnionLayer = layer;
+      [1, 2, 3].forEach(n => {
+        const btn = document.getElementById(`onionBtn${n}`);
+        btn.className = n === layer
+          ? "px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition bg-blue-600 text-white shadow-sm"
+          : "px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition text-slate-600 hover:bg-slate-100";
+      });
+      renderOrbitMap();
+      updateInspectorCard();
+    }
+
+    function changeNativeLang(lang) {
+      currentNativeLang = lang;
+      renderOrbitMap();
+      updateInspectorCard();
+    }
+
+    function toggleAlwaysNative(checked) {
+      alwaysShowNative = checked;
+      updateNativeVisibility();
+    }
+
+    function peekNative(isHolding) {
+      if (alwaysShowNative) return;
+      const outEl = document.getElementById("nativeAnchorOutput");
+      outEl.style.filter = isHolding ? "blur(0px)" : "blur(6px)";
+    }
+
+    function updateNativeVisibility() {
+      const outEl = document.getElementById("nativeAnchorOutput");
+      outEl.style.filter = alwaysShowNative ? "blur(0px)" : "blur(6px)";
+    }
+
+    function renderBottomVerbStrip() {
+      const strip = document.getElementById("bottomVerbStrip");
+      strip.innerHTML = "";
+      RAW_50_VERBS.forEach((v, idx) => {
+        const btn = document.createElement("button");
+        const isCurrent = idx === activeVerbIndex && viewLevel === "VERB";
+        const isMastered = masteredVerbs.has(v.id);
+        btn.className = `px-2.5 py-1 rounded-xl text-xs font-extrabold shrink-0 transition flex items-center gap-1 ${
+          isCurrent
+            ? "bg-blue-600 text-white shadow-sm"
+            : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+        }`;
+        btn.innerHTML = `<span>${v.num}. ${v.id}</span>${isMastered ? '<span class="text-[10px]">⭐</span>' : ''}`;
+        btn.onclick = () => selectVerb(idx);
+        strip.appendChild(btn);
+      });
+    }
+
+    function renderVerbCatalogGrid(query = "") {
+      const grid = document.getElementById("verbCatalogGrid");
+      grid.innerHTML = "";
+      const q = query.trim().toLowerCase();
+
+      RAW_50_VERBS.forEach((v, idx) => {
+        if (q && !v.id.toLowerCase().includes(q) && !v.en.toLowerCase().includes(q) && !v.cluster.toLowerCase().includes(q)) {
+          return;
+        }
+        const card = document.createElement("button");
+        const isCurrent = idx === activeVerbIndex;
+        card.className = `p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
+          isCurrent ? "border-blue-600 bg-blue-50/60" : "border-slate-200 hover:border-blue-400 bg-slate-50/40"
+        }`;
+        card.innerHTML = `
+          <div class="flex items-center justify-between w-full">
+            <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-700">#${v.num} • ${v.level}</span>
+            <span class="text-[10px] font-bold text-slate-400">${v.cluster}</span>
+          </div>
+          <div class="mt-2">
+            <div class="text-sm font-extrabold text-slate-900">${v.id}</div>
+            <div class="text-xs text-slate-500 ${currentNativeLang === 'ar' ? 'arabic-text' : ''}">${v[currentNativeLang]}</div>
+          </div>
+          <div class="mt-2 text-[10px] font-bold text-blue-600">
+            ${v.branches.length} Präfix-Äste →
+          </div>
+        `;
+        card.onclick = () => selectVerb(idx);
+        grid.appendChild(card);
+      });
+    }
+
+    function toggleVerbDrawer() {
+      const drawer = document.getElementById("verbCatalogDrawer");
+      drawer.classList.toggle("hidden");
+      if (!drawer.classList.contains("hidden")) {
+        renderVerbCatalogGrid(document.getElementById("verbSearchInput").value);
+      }
+    }
+
+    function toggleCompassModal() {
+      document.getElementById("compassModal").classList.toggle("hidden");
+    }
+
+    function updateMasteredCounter() {
+      document.getElementById("masteredCountBadge").textContent = `${masteredVerbs.size}/50`;
+    }
+
+    function speakCurrentExample() {
+      if (!("speechSynthesis" in window)) return;
+      const verb = RAW_50_VERBS[activeVerbIndex];
+      const branch = verb.branches[activeBranchIndex] || verb.branches[0];
+      const [prefix, , , , subj, midObj] = branch;
+      const compass = PREFIX_COMPASS[prefix] || { sep: true };
+      const fullSentence = compass.sep
+        ? `${subj} ${verb.stem3} ${midObj} ${prefix}.`
+        : `${subj} ${prefix}${verb.stem3} ${midObj}.`;
+
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(fullSentence);
+      utter.lang = "de-DE";
+      utter.rate = 0.88;
+      window.speechSynthesis.speak(utter);
+    }
+
+    function speakCenterVerb() {
+      if (!("speechSynthesis" in window)) return;
+      const verb = RAW_50_VERBS[activeVerbIndex];
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(verb.id);
+      utter.lang = "de-DE";
+      window.speechSynthesis.speak(utter);
+    }
+
+    window.addEventListener("resize", renderOrbitMap);
+    window.addEventListener("DOMContentLoaded", () => {
+      updateMasteredCounter();
+      renderBottomVerbStrip();
+      renderOrbitMap();
+      updateInspectorCard();
+    });
+  </script>
+</body>
+</html>

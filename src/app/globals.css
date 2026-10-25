@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --background: #f4f7fb;
+  --foreground: #0f172a;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 80% 0%, #efe8ff 0%, transparent 42%),
+    radial-gradient(circle at 0% 100%, #e7f3ff 0%, transparent 40%),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-jakarta), "Plus Jakarta Sans", sans-serif;
+}
+
+button,
+input,
+select,
+summary {
+  font: inherit;
+}
+
+.prefix-start {
+  animation: prefix-leave 450ms ease forwards;
+}
+
+.prefix-end {
+  animation: prefix-arrive 450ms ease forwards;
+}
+
+@keyframes prefix-leave {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes prefix-arrive {
+  0%,
+  55% {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
